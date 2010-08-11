@@ -1,0 +1,18 @@
+Cryptochati XChat-plugin
+Copyright (C) Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>
+GPLv3 License
+
+TODO
+
+Installation:
+    Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
+
+Running:
+    The plugin should be autoloaded the next time Xchat start. But you can
+	launch it manually with the following command (in Xchat):
+	
+	/py load cryptochati.py
+
+Xchat commands:
+    TODO
+    
