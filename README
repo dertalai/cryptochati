@@ -2,17 +2,25 @@ Cryptochati XChat-plugin
 Copyright (C) Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>
 GPLv3 License
 
+Cryptochati XChat-plugin
+
 TODO
 
 Installation:
-    Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
+    1) You must have installed the pycrypto module. If you are under Debian or
+    Ubuntu, simply install "python-crypto" package:
+
+    $ sudo apt-get install python-crypto
+    
+    Otherwise, grab it from http://www.dlitz.net/software/pycrypto/
+       
+    2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
 
 Running:
-    The plugin should be autoloaded the next time Xchat start. But you can
-	launch it manually with the following command (in Xchat):
+    The plugin should be autoloaded the next time XChat start. But you can
+	launch it manually with the following command (in XChat):
 	
 	/py load cryptochati.py
 
-Xchat commands:
+XChat commands:
     TODO
-    

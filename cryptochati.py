@@ -27,26 +27,236 @@
 TODO
 
 Installation:
-    Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
+    1) You must have installed the pycrypto module. If you are under Debian or
+    Ubuntu, simply install "python-crypto" package:
+
+    $ sudo apt-get install python-crypto
+    
+    Otherwise, grab it from http://www.dlitz.net/software/pycrypto/
+       
+    2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
 
 Running:
-    The plugin should be autoloaded the next time Xchat start. But you can
-	launch it manually with the following command (in Xchat):
+    The plugin should be autoloaded the next time XChat start. But you can
+	launch it manually with the following command (in XChat):
 	
 	/py load cryptochati.py
 
-Xchat commands:
+XChat commands:
     TODO
 """
 
-__version__ = "0"
+__version__ = "0.01"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 
-__module_name__ = "Cryptochati XChat-plugin"
+__module_name__ = "Cryptochati"
 __module_version__ = __version__
-__module_description__ = __doc__
+__module_description__ = "Secure and easy chat encryptor"
 __module_author__ = __author__
 
+import xchat
+import binascii
+from Crypto.Cipher import AES
+from Crypto.PublicKey import RSA
+from Crypto.Util.randpool import RandomPool
+import cPickle
+import os
 
+
+
+ADMITIDOS = []
+
+class Encryptor:
+    def __init__(self):
+        #Decode hooks
+        xchat.hook_print("Private Message", self.decode, "Private Message")
+        xchat.hook_print("Private Message to Dialog", self.decode, "Private Message to Dialog")
+        
+        #Generic encode hook
+        self.allhook = xchat.hook_command("", self.encode)
+        
+        #Random generator
+        self.randfunc = RandomPool().get_bytes
+        
+        #Initialize configuration directory
+        confDir = "cryptochati.conf/"
+        if os.path.isdir(".xchat2"):
+            confDir = ".xchat2/" + confDir
+        if not os.path.isdir(confDir):
+            os.mkdir(confDir, 0700)
+        
+        #Private key file
+        self.myKeyPath = confDir + "my.key"
+        #Friends' public keys file
+        self.keysPath = confDir + "public.keys"
+        #Public keys dictionary
+        self.keys = {}
+        #Sending public key to others
+        self.sendPubKey = True
+        
+        #Create/load configuration
+        self.openConfiguration()
+
+
+
+    def cipher(self, cadena, nick):
+        res = ""
+        nuevaClave = self.randfunc(32)
+
+        res += self.keys[nick].encrypt(nuevaClave, "")[0].encode("base64").replace("\n", "")
+        
+        res += "-"
+        
+        enc = AES.new(nuevaClave)
+        #rellenamos de nulls hasta completar tamanno bloque
+        cadena += "\0" * (enc.block_size - (len(cadena) % enc.block_size))
+
+        cadena = enc.encrypt(cadena).encode('base64').replace("\n", "")
+        res += cadena
+        return res
+
+
+
+    def decipher(self, cadena):
+        #TODO
+        clave, mensaje = cadena.split("-")
+        enc = AES.new(self.privKey.decrypt(clave.decode("base64")))
+
+        return enc.decrypt(mensaje.decode('base64')).replace("\0", "")
+        
+
+        
+    def openConfiguration(self):
+        if os.path.isfile(self.myKeyPath):
+            with open(self.myKeyPath, "rb") as file:
+                self.privKey = cPickle.load(file)
+                print "Clave privada cargada"
+            assert isinstance(self.privKey, RSA.RSAobj_c)
+            
+        else:
+            self.privKey = RSA.generate(512, self.randfunc)
+            with open(self.myKeyPath, "wb") as file:
+                cPickle.dump(self.privKey, file)
+                print "Clave privada generada y guardada en " + self.myKeyPath
+        file.close()
+        
+        self.pubKey = self.privKey.publickey()
+        
+        if os.path.isfile(self.keysPath):
+            file = open(self.keysPath, "rb")
+            self.keys = cPickle.load(file)
+            assert isinstance(self.keys, dict)
+        else:
+            self.keys = {}
+        file.close()
+
+
+
+    def decode(self, word, word_eol, userdata):
+        #print word, word_eol, userdata
+        
+        actual = xchat.get_info("channel")
+        
+        sigue = False
+        for admitido in ADMITIDOS:
+            if xchat.nickcmp(actual, admitido) == 0:
+                sigue = True
+                break
+        if not sigue:
+            return xchat.EAT_NONE       
+
+        #print "decode", word
+
+        #Comprobamos si hay clave publica para cargarla
+        if word[1][:3] == "pub":
+            try:
+                pubKey = cPickle.loads(word[1][3:].decode("base64"))
+                assert isinstance(pubKey, RSA.RSAobj_c)
+                self.keys[actual.lower()] = pubKey
+                file = open(self.keysPath, "wb")
+                cPickle.dump(self.keys, file)
+                file.close()
+                
+                return xchat.EAT_XCHAT
+            except Exception as inst:
+                print inst
+                return xchat.EAT_NONE
+
+        decoded = ""
+        try:
+            decoded = self.decipher(word[1][3:])
+            #print "reencoded", reencoded
+        except:
+            pass
+        if word[1][:3] == "enc" and decoded != "" and decoded != (word[1][3:]):
+            # print "Antes: " + word[1] + ". Ahora: " + decoded + "."
+            # xchat.emit_print(userdata, *word)
+            xchat.emit_print(userdata, "e< " + word[0], decoded)
+            #TODO: Se generaliza no envio a ningun interlocutor
+            self.sendPubKey = False
+            return xchat.EAT_XCHAT
+        else:
+            return xchat.EAT_NONE
+
+	
+
+    def encode(self, word, word_eol, userdata):
+        actual = xchat.get_context().get_info("channel")
+        sigue = False
+        for admitido in ADMITIDOS:
+            if xchat.nickcmp(actual, admitido) == 0:
+               sigue = True
+        if not sigue:
+            return xchat.EAT_NONE       
+            
+        #print "encode", word, word_eol
+
+        if word[0:3] == "enc" or word[0:3] == "pub":
+            return xchat.EAT_NONE
+        else:
+            #Manda la clave publica de forma transparente
+            if self.sendPubKey:
+                xchat.get_context().command("raw privmsg " + actual + \
+                    " pub" + cPickle.dumps(self.pubKey).encode('base64').replace("\n", ""))
+
+            if self.keys.has_key(actual.lower()):
+                #Manda mensaje real encriptado al servidor, de forma transparente
+                xchat.get_context().command("raw privmsg " + actual + \
+                    " enc" + self.cipher(word_eol[0], actual.lower()))
+                #Muestra el propio mensaje, sin encriptar, en pantalla
+                xchat.emit_print("Your Message", "e> " + xchat.get_info("nick"), word_eol[0])
+                return xchat.EAT_ALL
+            else:
+                #xchat.get_context().command("privmsg " + actual + " " + word_eol[0])
+                return xchat.EAT_NONE
+    
+
+#Main
+e = Encryptor()
+print "Loaded plugin:", __module_name__, __module_version__
+
+
+
+#EVENTS = [
+#  ("Channel Action", 1),
+#  ("Channel Action Hilight", 1),
+#  ("Channel Message", 1),
+#  ("Channel Msg Hilight", 1),
+#  ("Channel Notice", 2),
+#  ("Generic Message", (0, 1)),
+#  ("Kick", 3),
+#  ("Killed", 1),
+#  ("Motd", 0),
+#  ("Notice", 1),
+#  ("Part with Reason", 3),
+#  ("Private Message", 1),
+#  ("Private Message to Dialog", 1),
+#  ("Quit", 1),
+#  ("Receive Wallops", 1),
+#  ("Server Notice", 0),
+#  ("Server Text", 0),
+#  ("Topic", 1),
+#  ("Topic Change", 1),
+#]
