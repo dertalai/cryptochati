@@ -16,6 +16,9 @@ Installation:
     Otherwise, grab it from http://www.dlitz.net/software/pycrypto/
        
     2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
+    
+    3) Edit manually the "friends.txt" on Cryptochati configuration directory
+    "~/.xchat2/cryptochati.conf". Add one nick per line.
 
 Running:
     The plugin should be autoloaded the next time XChat start. But you can

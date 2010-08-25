@@ -36,6 +36,9 @@ Installation:
     Otherwise, grab it from http://www.dlitz.net/software/pycrypto/
        
     2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
+    
+    3) Edit manually the "friends.txt" on Cryptochati configuration directory
+    "~/.xchat2/cryptochati.conf". Add one nick per line.
 
 Running:
     The plugin should be autoloaded the next time XChat start. But you can
@@ -48,7 +51,7 @@ XChat commands:
     files.
 """
 
-__version__ = "0.01.1"
+__version__ = "0.01.2"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
@@ -68,9 +71,8 @@ import os
 
 
 
-
 class Encryptor:
-    admitidos = []
+    friends = []
     
     def __init__(self):
         #Decode hooks
@@ -90,8 +92,8 @@ class Encryptor:
         if not os.path.isdir(confDir):
             os.mkdir(confDir, 0700)
         
-        #Admitidos file
-        self.admitidosPath = confDir + "admitidos.txt"
+        #Friends file
+        self.friendsPath = confDir + "friends.txt"
         #Private key file
         self.myKeyPath = confDir + "my.key"
         #Friends' public keys file
@@ -115,7 +117,7 @@ class Encryptor:
         res += "-"
         
         enc = AES.new(nuevaClave)
-        #rellenamos de nulls hasta completar tamanno bloque
+        #Fill it with null until reaching block size
         cadena += "\0" * (enc.block_size - (len(cadena) % enc.block_size))
 
         cadena = enc.encrypt(cadena).encode('base64').replace("\n", "")
@@ -126,30 +128,32 @@ class Encryptor:
 
     def decipher(self, cadena):
         #TODO
-        clave, mensaje = cadena.split("-")
-        enc = AES.new(self.privKey.decrypt(clave.decode("base64")))
+        key, message = cadena.split("-")
+        enc = AES.new(self.privKey.decrypt(key.decode("base64")))
 
-        return enc.decrypt(mensaje.decode('base64')).replace("\0", "")
+        return enc.decrypt(message.decode('base64')).replace("\0", "")
         
 
         
     def openConfiguration(self):
-        if os.path.isfile(self.admitidosPath):
-            with open(self.admitidosPath, "rb") as file:
-                for line in file.readlines():
-                    self.admitidos.append(line)
+        with open(self.friendsPath, "rb") as file:
+            for line in file.readlines():
+                nick = line.strip()
+                if nick != "":
+                    self.friends.append(nick)
+        print "friends: ", self.friends
 
         if os.path.isfile(self.myKeyPath):
             with open(self.myKeyPath, "rb") as file:
                 self.privKey = cPickle.load(file)
-                print "Clave privada cargada"
+                print "Private key loaded."
             assert isinstance(self.privKey, RSA.RSAobj_c)
             
         else:
             self.privKey = RSA.generate(512, self.randfunc)
             with open(self.myKeyPath, "wb") as file:
                 cPickle.dump(self.privKey, file)
-                print "Clave privada generada y guardada en " + self.myKeyPath
+                print "Private key generated and saved in " + self.myKeyPath
         file.close()
         
         self.pubKey = self.privKey.publickey()
@@ -170,8 +174,8 @@ class Encryptor:
         actual = xchat.get_info("channel")
         
         sigue = False
-        for admitido in self.admitidos:
-            if xchat.nickcmp(actual, admitido) == 0:
+        for friend in self.friends:
+            if xchat.nickcmp(actual, friend) == 0:
                 sigue = True
                 break
         if not sigue:
@@ -179,7 +183,7 @@ class Encryptor:
 
         #print "decode", word
 
-        #Comprobamos si hay clave publica para cargarla
+        #Check for a "public key" type message
         if word[1][:3] == "pub":
             try:
                 pubKey = cPickle.loads(word[1][3:].decode("base64"))
@@ -204,7 +208,8 @@ class Encryptor:
             # print "Antes: " + word[1] + ". Ahora: " + decoded + "."
             # xchat.emit_print(userdata, *word)
             xchat.emit_print(userdata, "e< " + word[0], decoded)
-            #TODO: Se generaliza no envio a ningun interlocutor
+            #TODO: One OK message means no more pubkey sending to anyone in
+            #this session.
             self.sendPubKey = False
             return xchat.EAT_XCHAT
         else:
@@ -215,8 +220,8 @@ class Encryptor:
     def encode(self, word, word_eol, userdata):
         actual = xchat.get_context().get_info("channel")
         sigue = False
-        for admitido in self.admitidos:
-            if xchat.nickcmp(actual, admitido) == 0:
+        for friend in self.friends:
+            if xchat.nickcmp(actual, friend) == 0:
                sigue = True
         if not sigue:
             return xchat.EAT_NONE       
@@ -226,22 +231,23 @@ class Encryptor:
         if word[0:3] == "enc" or word[0:3] == "pub":
             return xchat.EAT_NONE
         else:
-            #Manda la clave publica de forma transparente
+            #Send publick key and invisible to user (raw)
             if self.sendPubKey:
                 xchat.get_context().command("raw privmsg " + actual + \
                     " pub" + cPickle.dumps(self.pubKey).encode('base64').replace("\n", ""))
 
             if self.keys.has_key(actual.lower()):
-                #Manda mensaje real encriptado al servidor, de forma transparente
+                #Send real message encrypted raw
                 xchat.get_context().command("raw privmsg " + actual + \
                     " enc" + self.cipher(word_eol[0], actual.lower()))
-                #Muestra el propio mensaje, sin encriptar, en pantalla
+                #Show real message unencrypted on chat screen
                 xchat.emit_print("Your Message", "e> " + xchat.get_info("nick"), word_eol[0])
                 return xchat.EAT_ALL
             else:
                 #xchat.get_context().command("privmsg " + actual + " " + word_eol[0])
                 return xchat.EAT_NONE
     
+
 
 #Main
 e = Encryptor()
