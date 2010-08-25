@@ -4,7 +4,8 @@ GPLv3 License
 
 Cryptochati XChat-plugin
 
-TODO
+Cryptochati aims to be a secure and easy to use encryption plugin for XChat.
+It's inspired (in concept, not code) in Pidgin-Encryption plugin.
 
 Installation:
     1) You must have installed the pycrypto module. If you are under Debian or
@@ -23,4 +24,6 @@ Running:
 	/py load cryptochati.py
 
 XChat commands:
-    TODO
+    There are no commands at the moment. You must manually edit configuration
+    files.
+

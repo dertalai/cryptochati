@@ -24,7 +24,8 @@
 
 """Cryptochati XChat-plugin
 
-TODO
+Cryptochati aims to be a secure and easy to use encryption plugin for XChat.
+It's inspired (in concept, not code) in Pidgin-Encryption plugin.
 
 Installation:
     1) You must have installed the pycrypto module. If you are under Debian or
@@ -43,10 +44,11 @@ Running:
 	/py load cryptochati.py
 
 XChat commands:
-    TODO
+    There are no commands at the moment. You must manually edit configuration
+    files.
 """
 
-__version__ = "0.01"
+__version__ = "0.01.1"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
@@ -66,9 +68,10 @@ import os
 
 
 
-ADMITIDOS = []
 
 class Encryptor:
+    admitidos = []
+    
     def __init__(self):
         #Decode hooks
         xchat.hook_print("Private Message", self.decode, "Private Message")
@@ -87,6 +90,8 @@ class Encryptor:
         if not os.path.isdir(confDir):
             os.mkdir(confDir, 0700)
         
+        #Admitidos file
+        self.admitidosPath = confDir + "admitidos.txt"
         #Private key file
         self.myKeyPath = confDir + "my.key"
         #Friends' public keys file
@@ -129,6 +134,11 @@ class Encryptor:
 
         
     def openConfiguration(self):
+        if os.path.isfile(self.admitidosPath):
+            with open(self.admitidosPath, "rb") as file:
+                for line in file.readlines():
+                    self.admitidos.append(line)
+
         if os.path.isfile(self.myKeyPath):
             with open(self.myKeyPath, "rb") as file:
                 self.privKey = cPickle.load(file)
@@ -160,7 +170,7 @@ class Encryptor:
         actual = xchat.get_info("channel")
         
         sigue = False
-        for admitido in ADMITIDOS:
+        for admitido in self.admitidos:
             if xchat.nickcmp(actual, admitido) == 0:
                 sigue = True
                 break
@@ -205,7 +215,7 @@ class Encryptor:
     def encode(self, word, word_eol, userdata):
         actual = xchat.get_context().get_info("channel")
         sigue = False
-        for admitido in ADMITIDOS:
+        for admitido in self.admitidos:
             if xchat.nickcmp(actual, admitido) == 0:
                sigue = True
         if not sigue:
