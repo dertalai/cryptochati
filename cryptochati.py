@@ -37,8 +37,11 @@ Installation:
        
     2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
     
-    3) Edit manually the "friends.txt" on Cryptochati configuration directory
-    "~/.xchat2/cryptochati.conf". Add one nick per line.
+    3) Create/edit manually the "friends.txt" file into Cryptochati
+    configuration directory "~/.xchat2/cryptochati.conf/friends.txt". You'll
+    have to create both the "cryptochati.conf" subdirectory and the
+    "friends.txt" file if you have never run the plugin before. Add one nick
+    per line.
 
 Running:
     The plugin should be autoloaded the next time XChat start. But you can
@@ -72,7 +75,15 @@ import os
 
 
 class Encryptor:
+    #List of friend nicks
     friends = []
+    #Public keys dictionary
+    keys = {}
+    #Sending public key to others
+    sendPubKey = True
+    #Private and public self keys
+    privKey = None
+    pubKey = None
     
     def __init__(self):
         #Decode hooks
@@ -98,10 +109,6 @@ class Encryptor:
         self.myKeyPath = confDir + "my.key"
         #Friends' public keys file
         self.keysPath = confDir + "public.keys"
-        #Public keys dictionary
-        self.keys = {}
-        #Sending public key to others
-        self.sendPubKey = True
         
         #Create/load configuration
         self.openConfiguration()
@@ -136,6 +143,8 @@ class Encryptor:
 
         
     def openConfiguration(self):
+        if not os.path.isfile(self.friendsPath):
+            open(self.friendsPath, "wb").close()
         with open(self.friendsPath, "rb") as file:
             for line in file.readlines():
                 nick = line.strip()
@@ -154,17 +163,18 @@ class Encryptor:
             with open(self.myKeyPath, "wb") as file:
                 cPickle.dump(self.privKey, file)
                 print "Private key generated and saved in " + self.myKeyPath
-        file.close()
         
-        self.pubKey = self.privKey.publickey()
-        
-        if os.path.isfile(self.keysPath):
-            file = open(self.keysPath, "rb")
+        if not os.path.isfile(self.keysPath):
+            file = open(self.keysPath, "wb")
+            cPickle.dump({}, file)
+            file.close()
+        with open(self.keysPath, "rb") as file:
             self.keys = cPickle.load(file)
             assert isinstance(self.keys, dict)
-        else:
-            self.keys = {}
-        file.close()
+            print "Friend keys read from " + self.keysPath
+
+        self.pubKey = self.privKey.publickey()
+        
 
 
 
