@@ -54,7 +54,7 @@ XChat commands:
     files.
 """
 
-__version__ = "0.02"
+__version__ = "0.02.1"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
@@ -118,7 +118,9 @@ class Encryptor:
     def cipher(self, cadena, nick):
         res = ""
         nuevaClave = self.randfunc(32)
-
+        while "\0" in nuevaClave:
+            nuevaClave = self.randfunc(32)
+        
         res += self.keys[nick].encrypt(nuevaClave, "")[0].encode("base64").replace("\n", "")
         
         res += "-"
