@@ -245,15 +245,17 @@ class Encryptor:
             return xchat.EAT_NONE
         #Send publick key, invisible to user (raw)
         if self.sendPubKey:
-            xchat.get_context().command("raw privmsg " + actual + " " + \
-                PREFIXES["pub"] + cPickle.dumps(self.pubKey).encode('base64').r
+            xchat.get_context().command("raw privmsg " + actual + " " +
+                PREFIXES["pub"] + cPickle.dumps(self.pubKey).encode('base64')
+                .replace("\n", ""))
 
         if self.keys.has_key(actual.lower()):
             #Send real message encrypted raw
-            xchat.get_context().command("raw privmsg " + actual + " " + \
+            xchat.get_context().command("raw privmsg " + actual + " " +
                 PREFIXES["enc"] + self.cipher(word_eol[0], actual.lower()))
             #Show real message unencrypted on chat screen
-            xchat.emit_print("Your Message", "e> " + xchat.get_info("nick"), wo
+            xchat.emit_print("Your Message", "e> " + xchat.get_info("nick"),
+                word_eol[0])
             return xchat.EAT_ALL
         else:
             #xchat.get_context().command("privmsg " + actual + " " + word_eol[0
