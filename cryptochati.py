@@ -54,7 +54,7 @@ XChat commands:
     files.
 """
 
-__version__ = "0.02.1"
+__version__ = "0.03"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
