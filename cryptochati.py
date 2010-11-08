@@ -201,7 +201,7 @@ class Encryptor:
             return xchat.EAT_NONE
         
         
-        prefix = word[0:14]
+        prefix = word[1][0:15]
         #Check for a "public key" type message
         if prefix == PREFIXES["pub"]:
             try:
@@ -239,7 +239,7 @@ class Encryptor:
             #Send text as it comes (unencrypted to a no-friend)
             return xchat.EAT_NONE            
 
-        prefix = word[0:14]
+        prefix = word[0][0:15]
         if prefix in PREFIXES.itervalues():
             #Send text as it comes (formated for a friend)
             return xchat.EAT_NONE
