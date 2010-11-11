@@ -132,18 +132,17 @@ class Encryptor:
         self.randfunc = RandomPool().get_bytes
         
         #Initialize configuration directory
-        confDir = "cryptochati.conf/"
-        if os.path.isdir(".xchat2"):
-            confDir = ".xchat2/" + confDir
+        userDir = os.path.expanduser("~")
+        confDir = os.path.join(userDir, ".xchat2/cryptochati.conf")
         if not os.path.isdir(confDir):
-            os.mkdir(confDir, 0700)
+            os.makedirs(confDir, 0700)
         
         #Friends file
-        self.friendsPath = confDir + "friends.txt"
+        self.friendsPath = os.path.join(confDir, "friends.txt")
         #Private key file
-        self.myKeyPath = confDir + "my.key"
+        self.myKeyPath = os.path.join(confDir, "my.key")
         #Friends' public keys file
-        self.keysPath = confDir + "public.keys"
+        self.keysPath = os.path.join(confDir, "public.keys")
         
         #Create/load configuration
         self.openConfiguration()
@@ -158,14 +157,11 @@ class Encryptor:
         
         keyText = MsgWrapper.toBase64(self.keys[nick].encrypt(newKey, "")[0])
         
-        #res += "-"
-        
         enc = AES.new(newKey)
         #Fill it with null until reaching block size
         newString = string + "\0" * (enc.block_size - (len(string) % enc.block_size))
-
         newString = MsgWrapper.toBase64(enc.encrypt(newString))
-        #res += cadena
+
         return keyText, newString
 
 
@@ -285,7 +281,6 @@ class Encryptor:
                 word_eol[0])
             return xchat.EAT_ALL
         else:
-            #xchat.get_context().command("privmsg " + actual + " " + word_eol[0
             return xchat.EAT_NONE
     
 
