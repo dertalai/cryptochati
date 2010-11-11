@@ -74,12 +74,41 @@ import os
 
 
 PREFIXES = { # MUST BE 15 CHARS LONG
-    "enc": "CryptoChati-ENC", #Encrypted text
     "pub": "CryptoChati-PUB", #Public key
-    "sig": "CryptoChati-SIG" #Signature of next message
+    "key": "CryptoChati-KEY", #Encrypted key for next message
+    "sig": "CryptoChati-SIG", #Signature of next message
+    "enc": "CryptoChati-ENC", #Encrypted text
 }
 
+class MsgWrapper:
+    def __init__(self):
+        pass
+        
+    @staticmethod
+    def wrap(type, data, nick):
+        print "wrap:", type, data, nick
+        assert PREFIXES.has_key(type)
+        
+        if type == "pub":
+            xchat.get_context().command("raw privmsg " + nick + " " +
+                PREFIXES[type] + MsgWrapper.toBase64(cPickle.dumps(data)))
+                
+        elif type == "key":
+            pass
+        
+        elif type == "sig":
+            pass
+            
+        elif type == "enc":
+            xchat.get_context().command("raw privmsg " + nick + " " +
+                PREFIXES[type] + data)
 
+
+    @staticmethod
+    def toBase64(data):
+        return data.encode("base64").replace("\n", "")
+    
+    
 class Encryptor:
     #List of friend nicks
     friends = []
@@ -121,23 +150,23 @@ class Encryptor:
 
 
 
-    def cipher(self, cadena, nick):
-        res = ""
-        nuevaClave = self.randfunc(32)
-        while "\0" in nuevaClave:
-            nuevaClave = self.randfunc(32)
+    def cipher(self, string, nick):
+        newKey = self.randfunc(32)
+        # Don't let key having \0 character
+        while "\0" in newKey:
+            newKey = self.randfunc(32)
         
-        res += self.keys[nick].encrypt(nuevaClave, "")[0].encode("base64").replace("\n", "")
+        keyText = MsgWrapper.toBase64(self.keys[nick].encrypt(newKey, "")[0])
         
-        res += "-"
+        #res += "-"
         
-        enc = AES.new(nuevaClave)
+        enc = AES.new(newKey)
         #Fill it with null until reaching block size
-        cadena += "\0" * (enc.block_size - (len(cadena) % enc.block_size))
+        newString = string + "\0" * (enc.block_size - (len(string) % enc.block_size))
 
-        cadena = enc.encrypt(cadena).encode('base64').replace("\n", "")
-        res += cadena
-        return res
+        newString = MsgWrapper.toBase64(enc.encrypt(newString))
+        #res += cadena
+        return keyText, newString
 
 
 
@@ -245,14 +274,12 @@ class Encryptor:
             return xchat.EAT_NONE
         #Send publick key, invisible to user (raw)
         if self.sendPubKey:
-            xchat.get_context().command("raw privmsg " + actual + " " +
-                PREFIXES["pub"] + cPickle.dumps(self.pubKey).encode('base64')
-                .replace("\n", ""))
-
+            MsgWrapper.wrap("pub", self.pubKey, actual)
+            
         if self.keys.has_key(actual.lower()):
+            MsgKey, MsgText = self.cipher(word_eol[0], actual.lower())
             #Send real message encrypted raw
-            xchat.get_context().command("raw privmsg " + actual + " " +
-                PREFIXES["enc"] + self.cipher(word_eol[0], actual.lower()))
+            MsgWrapper.wrap("enc", MsgKey + "-" + MsgText, actual)
             #Show real message unencrypted on chat screen
             xchat.emit_print("Your Message", "e> " + xchat.get_info("nick"),
                 word_eol[0])
