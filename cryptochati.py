@@ -71,6 +71,8 @@ from Crypto.PublicKey import RSA
 from Crypto.Util.randpool import RandomPool
 import cPickle
 import os
+import hashlib
+
 
 
 PREFIXES = { # MUST BE 15 CHARS LONG
@@ -86,7 +88,7 @@ class MsgWrapper:
         
     @staticmethod
     def wrap(type, data, nick):
-        print "wrap:", type, data, nick
+        #print "wrap:", type, str(data)[:80], nick
         assert PREFIXES.has_key(type)
         
         if type == "pub":
@@ -97,6 +99,8 @@ class MsgWrapper:
             pass
         
         elif type == "sig":
+            xchat.get_context().command("raw privmsg " + nick + " " +
+                PREFIXES[type] + str(data))
             pass
             
         elif type == "enc":
@@ -166,15 +170,24 @@ class Encryptor:
 
 
 
-    def decipher(self, cadena):
-        #TODO
-        key, message = cadena.split("-")
+    def decipher(self, data):
+        key, message = data.split("-")
         enc = AES.new(self.privKey.decrypt(key.decode("base64")))
 
         return enc.decrypt(message.decode('base64')).replace("\0", "")
         
 
         
+    def sign(self, text):
+        hash = hashlib.sha1(text).digest()
+        return self.privKey.sign(hash, self.randfunc(16))
+        
+    def verify(self, text, data, actual):
+        pubkey = self.keys[actual.lower()]
+        hash = hashlib.sha1(text).digest()
+        return pubkey.verify(text, hash)
+        
+
     def openConfiguration(self):
         if not os.path.isfile(self.friendsPath):
             open(self.friendsPath, "wb").close()
@@ -248,6 +261,10 @@ class Encryptor:
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
+                
+        elif prefix == PREFIXES["sig"]:
+            #TODO
+            return xchat.EAT_XCHAT
         
         return xchat.EAT_NONE
 
@@ -273,9 +290,13 @@ class Encryptor:
             MsgWrapper.wrap("pub", self.pubKey, actual)
             
         if self.keys.has_key(actual.lower()):
+            MsgSig = self.sign(word_eol[0])
             MsgKey, MsgText = self.cipher(word_eol[0], actual.lower())
             #Send real message encrypted raw
             MsgWrapper.wrap("enc", MsgKey + "-" + MsgText, actual)
+            #Send signature
+            MsgWrapper.wrap("sig", MsgSig[0], actual) 
+            
             #Show real message unencrypted on chat screen
             xchat.emit_print("Your Message", "e> " + xchat.get_info("nick"),
                 word_eol[0])
