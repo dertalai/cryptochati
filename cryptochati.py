@@ -72,7 +72,7 @@ from Crypto.Util.randpool import RandomPool
 import cPickle
 import os
 import hashlib
-
+import string
 
 
 PREFIXES = { # MUST BE 15 CHARS LONG
@@ -83,12 +83,16 @@ PREFIXES = { # MUST BE 15 CHARS LONG
 }
 
 class MsgWrapper:
+    ALPHABET = string.digits + string.ascii_letters + string.punctuation
+    ALPHABET_LOOKUP = dict((char, i) for (i, char) in enumerate(ALPHABET))
+    BASE = len(ALPHABET)
+    
     def __init__(self):
         pass
         
     @staticmethod
     def wrap(type, data, nick):
-        #print "wrap:", type, str(data)[:80], nick
+        # print "wrap:", type, str(data)[:80], nick
         assert PREFIXES.has_key(type)
         
         if type == "pub":
@@ -99,8 +103,9 @@ class MsgWrapper:
             pass
         
         elif type == "sig":
+            encodedSig = MsgWrapper.dec2BaseX(data)
             xchat.get_context().command("raw privmsg " + nick + " " +
-                PREFIXES[type] + str(data))
+                PREFIXES[type] + encodedSig)
             pass
             
         elif type == "enc":
@@ -112,6 +117,22 @@ class MsgWrapper:
     def toBase64(data):
         return data.encode("base64").replace("\n", "")
     
+    @staticmethod
+    def dec2BaseX(num):
+        assert num > 0
+        s = []
+        while True:
+            num, r = divmod(num, MsgWrapper.BASE)
+            s.append(MsgWrapper.ALPHABET[r])
+            if num == 0: break
+        return ''.join(reversed(s))
+
+    @staticmethod
+    def baseX2dec(data):
+        num = 0
+        for c in data:
+            num = num * MsgWrapper.BASE + MsgWrapper.ALPHABET_LOOKUP[c]
+        return num
     
 class Encryptor:
     #List of friend nicks
@@ -263,7 +284,11 @@ class Encryptor:
                 print inst
                 
         elif prefix == PREFIXES["sig"]:
-            #TODO
+            try:
+                decodedNum = MsgWrapper.baseX2dec(word[1][15:])
+                #TODO
+            except Exception as inst:
+                print inst
             return xchat.EAT_XCHAT
         
         return xchat.EAT_NONE
