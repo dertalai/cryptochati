@@ -115,7 +115,8 @@ class MsgWrapper:
 
     @staticmethod
     def toBase64(data):
-        return data.encode("base64").replace("\n", "")
+        #Quit trailing char (always "\n")
+        return binascii.b2a_base64(data)[:-1] 
     
     @staticmethod
     def dec2BaseX(num):
@@ -133,7 +134,25 @@ class MsgWrapper:
         for c in data:
             num = num * MsgWrapper.BASE + MsgWrapper.ALPHABET_LOOKUP[c]
         return num
+
+class Conversations:
+    d = dict()
     
+    def __init__(self):
+        pass
+    
+    def get(self, nick):
+        result = None
+        for i in self.d.iterkeys():
+            if xchat.nickcmp(nick, i) == 0:
+                result = self.d.get(i)
+        
+        if not result:
+            self.d[nick] = ["", "", ""]
+        
+        return self.d.get(nick)
+    
+
 class Encryptor:
     #List of friend nicks
     friends = []
@@ -144,6 +163,8 @@ class Encryptor:
     #Private and public self keys
     privKey = None
     pubKey = None
+    
+    conversations = Conversations()
     
     def __init__(self):
         #Decode hooks
@@ -206,7 +227,7 @@ class Encryptor:
     def verify(self, text, data, actual):
         pubkey = self.keys[actual.lower()]
         hash = hashlib.sha1(text).digest()
-        return pubkey.verify(text, hash)
+        return pubkey.verify(hash, data)
         
 
     def openConfiguration(self):
@@ -270,6 +291,7 @@ class Encryptor:
                 file = open(self.keysPath, "wb")
                 cPickle.dump(self.keys, file)
                 file.close()
+                self.conversations.get(actual)[0] = pubKey
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
@@ -279,6 +301,7 @@ class Encryptor:
                 decoded = self.decipher(word[1][15:])
                 xchat.emit_print(userdata, "e< " + word[0], decoded)
                 self.sendPubKey = False
+                self.conversations.get(actual)[1] = decoded
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
@@ -286,10 +309,13 @@ class Encryptor:
         elif prefix == PREFIXES["sig"]:
             try:
                 decodedNum = MsgWrapper.baseX2dec(word[1][15:])
-                #TODO
+                self.conversations.get(actual)[2] = decodedNum
+                #print self.conversations.get(actual)
+                print self.verify(
+                    self.conversations.get(actual)[1], (decodedNum, ), actual)
+                return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
-            return xchat.EAT_XCHAT
         
         return xchat.EAT_NONE
 
