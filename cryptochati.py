@@ -148,7 +148,11 @@ class Conversations:
                 result = self.d.get(i)
         
         if not result:
-            self.d[nick] = ["", "", ""]
+            self.d[nick] = {
+                "publickey": "",
+                "message": "",
+                "signature": "",
+            }
         
         return self.d.get(nick)
     
@@ -224,8 +228,8 @@ class Encryptor:
         hash = hashlib.sha1(text).digest()
         return self.privKey.sign(hash, self.randfunc(16))
         
-    def verify(self, text, data, actual):
-        pubkey = self.keys[actual.lower()]
+    def verify(self, text, data, interlocutor):
+        pubkey = self.keys[interlocutor.lower()]
         hash = hashlib.sha1(text).digest()
         return pubkey.verify(hash, data)
         
@@ -269,11 +273,11 @@ class Encryptor:
     def decode(self, word, word_eol, userdata):
         #print "decode", word, word_eol, userdata
         
-        actual = xchat.get_info("channel")
+        interlocutor = xchat.get_info("channel")
         
         sigue = False
         for friend in self.friends:
-            if xchat.nickcmp(actual, friend) == 0:
+            if xchat.nickcmp(interlocutor, friend) == 0:
                 sigue = True
                 break
         if not sigue:
@@ -281,47 +285,48 @@ class Encryptor:
             return xchat.EAT_NONE
         
         
-        prefix = word[1][0:15]
+        prefix, data = word[1][0:15], word[1][15:]
+        conversation = self.conversations.get(interlocutor)
         #Check for a "public key" type message
         if prefix == PREFIXES["pub"]:
             try:
-                pubKey = cPickle.loads(word[1][15:].decode("base64"))
+                pubKey = cPickle.loads(data.decode("base64"))
                 assert isinstance(pubKey, RSA.RSAobj_c)
-                self.keys[actual.lower()] = pubKey
+                self.keys[interlocutor.lower()] = pubKey
                 file = open(self.keysPath, "wb")
                 cPickle.dump(self.keys, file)
                 file.close()
-                self.conversations.get(actual)[0] = pubKey
+                conversation["publickey"] = pubKey
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
                 
         elif prefix == PREFIXES["enc"]:
             try:
-                decoded = self.decipher(word[1][15:])
+                decoded = self.decipher(data)
                 #xchat.emit_print(userdata, "e< " + word[0], decoded)
                 self.sendPubKey = False
-                self.conversations.get(actual)[1] = decoded
+                conversation["message"] = decoded
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
                 
         elif prefix == PREFIXES["sig"]:
             try:
-                decodedNum = MsgWrapper.baseX2dec(word[1][15:])
-                self.conversations.get(actual)[2] = decodedNum
-                #print self.conversations.get(actual)
-                if self.verify(self.conversations.get(actual)[1],
-                    (decodedNum, ), actual):
+                indicator = None
+                conversation["signature"] = MsgWrapper.baseX2dec(data)
+                if self.verify(conversation["message"],
+                    (conversation["signature"], ), interlocutor):
                     indicator = "e< "
-                else:
-                    print "Bad signature. May not be your friend!!"
-                    indicator = "!!< "
-                xchat.emit_print(userdata, indicator + word[0],
-                    self.conversations.get(actual)[1])
-                return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
+            if not indicator:
+                print "Cryptochati WARNING: Bad signature. " \
+                    "Your interlocutor may be an impostor!!"
+                indicator = "!!< "
+            xchat.emit_print(userdata, indicator + word[0],
+                conversation["message"])
+            return xchat.EAT_XCHAT
         
         return xchat.EAT_NONE
 
@@ -329,10 +334,10 @@ class Encryptor:
 
     def encode(self, word, word_eol, userdata):
         #print "encode", word, word_eol
-        actual = xchat.get_context().get_info("channel")
+        interlocutor = xchat.get_context().get_info("channel")
         sigue = False
         for friend in self.friends:
-            if xchat.nickcmp(actual, friend) == 0:
+            if xchat.nickcmp(interlocutor, friend) == 0:
                sigue = True
         if not sigue:
             #Send text as it comes (unencrypted to a no-friend)
@@ -342,21 +347,24 @@ class Encryptor:
         if prefix in PREFIXES.itervalues():
             #Send text as it comes (formated for a friend)
             return xchat.EAT_NONE
-        #Send publick key, invisible to user (raw)
+        
         if self.sendPubKey:
-            MsgWrapper.wrap("pub", self.pubKey, actual)
+            #Send public key, invisible to user (raw)
+            MsgWrapper.wrap("pub", self.pubKey, interlocutor)
             
-        if self.keys.has_key(actual.lower()):
-            MsgSig = self.sign(word_eol[0])
-            MsgKey, MsgText = self.cipher(word_eol[0], actual.lower())
+        if self.keys.has_key(interlocutor.lower()):
+            text = word_eol[0]
+            
+            txtSignature = self.sign(text)
+            txtKey, encryptedTxt = self.cipher(text, interlocutor.lower())
             #Send real message encrypted raw
-            MsgWrapper.wrap("enc", MsgKey + "-" + MsgText, actual)
+            MsgWrapper.wrap("enc", txtKey + "-" + encryptedTxt, interlocutor)
             #Send signature
-            MsgWrapper.wrap("sig", MsgSig[0], actual) 
+            MsgWrapper.wrap("sig", txtSignature[0], interlocutor) 
             
             #Show real message unencrypted on chat screen
             xchat.emit_print("Your Message", "e> " + xchat.get_info("nick"),
-                word_eol[0])
+                text)
             return xchat.EAT_ALL
         else:
             return xchat.EAT_NONE
