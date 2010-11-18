@@ -299,7 +299,7 @@ class Encryptor:
         elif prefix == PREFIXES["enc"]:
             try:
                 decoded = self.decipher(word[1][15:])
-                xchat.emit_print(userdata, "e< " + word[0], decoded)
+                #xchat.emit_print(userdata, "e< " + word[0], decoded)
                 self.sendPubKey = False
                 self.conversations.get(actual)[1] = decoded
                 return xchat.EAT_XCHAT
@@ -311,8 +311,14 @@ class Encryptor:
                 decodedNum = MsgWrapper.baseX2dec(word[1][15:])
                 self.conversations.get(actual)[2] = decodedNum
                 #print self.conversations.get(actual)
-                print self.verify(
-                    self.conversations.get(actual)[1], (decodedNum, ), actual)
+                if self.verify(self.conversations.get(actual)[1],
+                    (decodedNum, ), actual):
+                    indicator = "e< "
+                else:
+                    print "Bad signature. May not be your friend!!"
+                    indicator = "!!< "
+                xchat.emit_print(userdata, indicator + word[0],
+                    self.conversations.get(actual)[1])
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
