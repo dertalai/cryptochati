@@ -23,35 +23,7 @@
 ############################################################################
 
 """Cryptochati XChat-plugin
-
-Cryptochati aims to be a secure and easy to use encryption plugin for XChat.
-It's inspired (in concept, not code) in Pidgin-Encryption plugin.
-
-Installation:
-    1) You must have installed the pycrypto module. If you are under Debian or
-    Ubuntu, simply install "python-crypto" package:
-
-    $ sudo apt-get install python-crypto
-    
-    Otherwise, grab it from http://www.dlitz.net/software/pycrypto/
-       
-    2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
-    
-    3) Create/edit manually the "friends.txt" file into Cryptochati
-    configuration directory "~/.xchat2/cryptochati.conf/friends.txt". You'll
-    have to create both the "cryptochati.conf" subdirectory and the
-    "friends.txt" file if you have never run the plugin before. Add one nick
-    per line.
-
-Running:
-    The plugin should be autoloaded the next time XChat start. But you can
-	launch it manually with the following command (in XChat):
-	
-	/py load cryptochati.py
-
-XChat commands:
-    There are no commands at the moment. You must manually edit configuration
-    files.
+Read README file for features, installation and use of this plugin.
 """
 
 __version__ = "0.03"
@@ -103,7 +75,7 @@ class MsgWrapper:
             pass
         
         elif type == "sig":
-            encodedSig = MsgWrapper.dec2BaseX(data)
+            encodedSig = MsgWrapper.dec2baseX(data)
             xchat.get_context().command("raw privmsg " + nick + " " +
                 PREFIXES[type] + encodedSig)
             pass
@@ -119,7 +91,7 @@ class MsgWrapper:
         return binascii.b2a_base64(data)[:-1] 
     
     @staticmethod
-    def dec2BaseX(num):
+    def dec2baseX(num):
         assert num > 0
         s = []
         while True:
@@ -134,6 +106,24 @@ class MsgWrapper:
         for c in data:
             num = num * MsgWrapper.BASE + MsgWrapper.ALPHABET_LOOKUP[c]
         return num
+    
+    @staticmethod
+    def str2baseX(string):
+        num = 0
+        for i in string:
+            num = num * 256 + ord(i)
+        return dec2baseX(num)
+    
+    @staticmethod
+    def baseX2str(data):
+        num = baseX2dec(data)
+        s = ""
+        while True:
+            num, r = divmod(num, 256)
+            s += chr(r)
+            if num == 0: break
+        return s[::-1]
+
 
 class Conversations:
     d = dict()
