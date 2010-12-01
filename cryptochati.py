@@ -72,13 +72,13 @@ class MsgWrapper:
                 PREFIXES[type] + MsgWrapper.toBase64(cPickle.dumps(data)))
                 
         elif type == "key":
-            pass
+            xchat.get_context().command("raw privmsg " + nick + " " +
+                PREFIXES[type] + data)
         
         elif type == "sig":
             encodedSig = MsgWrapper.dec2baseX(data)
             xchat.get_context().command("raw privmsg " + nick + " " +
                 PREFIXES[type] + encodedSig)
-            pass
             
         elif type == "enc":
             xchat.get_context().command("raw privmsg " + nick + " " +
@@ -112,11 +112,11 @@ class MsgWrapper:
         num = 0
         for i in string:
             num = num * 256 + ord(i)
-        return dec2baseX(num)
+        return MsgWrapper.dec2baseX(num)
     
     @staticmethod
     def baseX2str(data):
-        num = baseX2dec(data)
+        num = MsgWrapper.baseX2dec(data)
         s = ""
         while True:
             num, r = divmod(num, 256)
@@ -140,6 +140,7 @@ class Conversations:
         if not result:
             self.d[nick] = {
                 "publickey": "",
+                "txtkey": "",
                 "message": "",
                 "signature": "",
             }
@@ -195,7 +196,7 @@ class Encryptor:
         while "\0" in newKey:
             newKey = self.randfunc(32)
         
-        keyText = MsgWrapper.toBase64(self.keys[nick].encrypt(newKey, "")[0])
+        keyText = MsgWrapper.str2baseX(self.keys[nick].encrypt(newKey, "")[0])
         
         enc = AES.new(newKey)
         #Fill it with null until reaching block size
@@ -206,11 +207,10 @@ class Encryptor:
 
 
 
-    def decipher(self, data):
-        key, message = data.split("-")
-        enc = AES.new(self.privKey.decrypt(key.decode("base64")))
+    def decipher(self, key, data):
+        enc = AES.new(self.privKey.decrypt(MsgWrapper.baseX2str(key)))
 
-        return enc.decrypt(message.decode('base64')).replace("\0", "")
+        return enc.decrypt(data.decode('base64')).replace("\0", "")
         
 
         
@@ -290,11 +290,14 @@ class Encryptor:
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
-                
+
+        elif prefix == PREFIXES["key"]:
+            conversation["txtkey"] = data
+            return xchat.EAT_XCHAT
+            
         elif prefix == PREFIXES["enc"]:
             try:
-                decoded = self.decipher(data)
-                #xchat.emit_print(userdata, "e< " + word[0], decoded)
+                decoded = self.decipher(conversation["txtkey"], data)
                 self.sendPubKey = False
                 conversation["message"] = decoded
                 return xchat.EAT_XCHAT
@@ -347,8 +350,10 @@ class Encryptor:
             
             txtSignature = self.sign(text)
             txtKey, encryptedTxt = self.cipher(text, interlocutor.lower())
+            #Send key
+            MsgWrapper.wrap("key", txtKey, interlocutor)
             #Send real message encrypted raw
-            MsgWrapper.wrap("enc", txtKey + "-" + encryptedTxt, interlocutor)
+            MsgWrapper.wrap("enc", encryptedTxt, interlocutor)
             #Send signature
             MsgWrapper.wrap("sig", txtSignature[0], interlocutor) 
             
