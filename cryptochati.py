@@ -62,61 +62,64 @@ class MsgWrapper:
     def __init__(self):
         pass
         
-    @staticmethod
-    def wrap(type, data, nick):
+    @classmethod
+    def wrap(self, type, data, nick):
         # print "wrap:", type, str(data)[:80], nick
         assert PREFIXES.has_key(type)
         
         if type == "pub":
+            encodedPub = self.str2baseX(cPickle.dumps(data))
             xchat.get_context().command("raw privmsg " + nick + " " +
-                PREFIXES[type] + MsgWrapper.toBase64(cPickle.dumps(data)))
+                PREFIXES[type] + encodedPub)
                 
         elif type == "key":
+            encodedKey = self.str2baseX(data)
             xchat.get_context().command("raw privmsg " + nick + " " +
-                PREFIXES[type] + data)
+                PREFIXES[type] + encodedKey)
         
         elif type == "sig":
-            encodedSig = MsgWrapper.dec2baseX(data)
+            encodedSig = self.dec2baseX(data)
             xchat.get_context().command("raw privmsg " + nick + " " +
                 PREFIXES[type] + encodedSig)
             
         elif type == "enc":
+            encodedTxt = self.str2baseX(data)
             xchat.get_context().command("raw privmsg " + nick + " " +
-                PREFIXES[type] + data)
+                PREFIXES[type] + encodedTxt)
 
 
-    @staticmethod
-    def toBase64(data):
-        #Quit trailing char (always "\n")
-        return binascii.b2a_base64(data)[:-1] 
+#    @classmethod
+#    def toBase64(self, data):
+#        #Quit trailing char (always "\n")
+#        return binascii.b2a_base64(data)[:-1]
     
-    @staticmethod
-    def dec2baseX(num):
+    @classmethod
+    def dec2baseX(self, num):
         assert num > 0
         s = []
         while True:
-            num, r = divmod(num, MsgWrapper.BASE)
-            s.append(MsgWrapper.ALPHABET[r])
+            num, r = divmod(num, self.BASE)
+            s.append(self.ALPHABET[r])
             if num == 0: break
         return ''.join(reversed(s))
 
-    @staticmethod
-    def baseX2dec(data):
+    @classmethod
+    def baseX2dec(self, data):
         num = 0
         for c in data:
-            num = num * MsgWrapper.BASE + MsgWrapper.ALPHABET_LOOKUP[c]
+            num = num * self.BASE + self.ALPHABET_LOOKUP[c]
         return num
     
-    @staticmethod
-    def str2baseX(string):
+    @classmethod
+    def str2baseX(self, string):
         num = 0
         for i in string:
             num = num * 256 + ord(i)
-        return MsgWrapper.dec2baseX(num)
+        return self.dec2baseX(num)
     
-    @staticmethod
-    def baseX2str(data):
-        num = MsgWrapper.baseX2dec(data)
+    @classmethod
+    def baseX2str(self, data):
+        num = self.baseX2dec(data)
         s = ""
         while True:
             num, r = divmod(num, 256)
@@ -196,21 +199,21 @@ class Encryptor:
         while "\0" in newKey:
             newKey = self.randfunc(32)
         
-        keyText = MsgWrapper.str2baseX(self.keys[nick].encrypt(newKey, "")[0])
+        keyText = self.keys[nick].encrypt(newKey, "")[0]
         
         enc = AES.new(newKey)
         #Fill it with null until reaching block size
         newString = string + "\0" * (enc.block_size - (len(string) % enc.block_size))
-        newString = MsgWrapper.toBase64(enc.encrypt(newString))
+        newString = enc.encrypt(newString)
 
         return keyText, newString
 
 
 
     def decipher(self, key, data):
-        enc = AES.new(self.privKey.decrypt(MsgWrapper.baseX2str(key)))
+        enc = AES.new(self.privKey.decrypt(key))
 
-        return enc.decrypt(data.decode('base64')).replace("\0", "")
+        return enc.decrypt(data).replace("\0", "")
         
 
         
@@ -258,8 +261,6 @@ class Encryptor:
         self.pubKey = self.privKey.publickey()
         
 
-
-
     def decode(self, word, word_eol, userdata):
         #print "decode", word, word_eol, userdata
         
@@ -280,7 +281,7 @@ class Encryptor:
         #Check for a "public key" type message
         if prefix == PREFIXES["pub"]:
             try:
-                pubKey = cPickle.loads(data.decode("base64"))
+                pubKey = cPickle.loads(MsgWrapper.baseX2str(data))
                 assert isinstance(pubKey, RSA.RSAobj_c)
                 self.keys[interlocutor.lower()] = pubKey
                 file = open(self.keysPath, "wb")
@@ -292,12 +293,13 @@ class Encryptor:
                 print inst
 
         elif prefix == PREFIXES["key"]:
-            conversation["txtkey"] = data
+            conversation["txtkey"] = MsgWrapper.baseX2str(data)
             return xchat.EAT_XCHAT
             
         elif prefix == PREFIXES["enc"]:
             try:
-                decoded = self.decipher(conversation["txtkey"], data)
+                decoded = self.decipher(conversation["txtkey"],
+                    MsgWrapper.baseX2str(data))
                 self.sendPubKey = False
                 conversation["message"] = decoded
                 return xchat.EAT_XCHAT
