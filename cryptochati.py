@@ -37,7 +37,6 @@ __module_description__ = "Secure and easy chat encryptor"
 __module_author__ = __author__
 
 import xchat
-import binascii
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Util.randpool import RandomPool
@@ -55,6 +54,7 @@ PREFIXES = { # MUST BE 15 CHARS LONG
 }
 
 class MsgWrapper:
+    # Base94
     ALPHABET = string.digits + string.ascii_letters + string.punctuation
     ALPHABET_LOOKUP = dict((char, i) for (i, char) in enumerate(ALPHABET))
     BASE = len(ALPHABET)
@@ -86,12 +86,6 @@ class MsgWrapper:
             encodedTxt = self.str2baseX(data)
             xchat.get_context().command("raw privmsg " + nick + " " +
                 PREFIXES[type] + encodedTxt)
-
-
-#    @classmethod
-#    def toBase64(self, data):
-#        #Quit trailing char (always "\n")
-#        return binascii.b2a_base64(data)[:-1]
     
     @classmethod
     def dec2baseX(self, num):
