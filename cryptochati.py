@@ -337,6 +337,9 @@ class Encryptor:
                 indicator = "!!< "
             xchat.emit_print(userdata, indicator + word[0],
                 conversation["message"])
+            conversation["txtkey"] = ""
+            conversation["message"] = ""
+            conversation["signature"] = ""
             return xchat.EAT_XCHAT
         
         return xchat.EAT_NONE
