@@ -96,7 +96,7 @@ class MsgWrapper:
             s.append(self.ALPHABET[r])
             if num == 0: break
         return ''.join(reversed(s))
-
+    
     @classmethod
     def baseX2dec(self, data):
         num = 0
@@ -122,40 +122,62 @@ class MsgWrapper:
         return s[::-1]
 
 
-class Conversations:
-    d = dict()
-    
-    def __init__(self):
-        pass
-    
+class Conversations(dict):
     def get(self, nick):
-        result = None
-        for i in self.d.iterkeys():
+        for i in self.iterkeys():
             if xchat.nickcmp(nick, i) == 0:
-                result = self.d.get(i)
+                nick = i
         
-        if not result:
-            self.d[nick] = {
+        if not self.has_key(nick):
+            super(Conversations, self).__setitem__(nick, {
                 "publickey": "",
                 "txtkey": "",
                 "message": "",
                 "signature": "",
-            }
+            })
         
-        return self.d.get(nick)
+        return super(Conversations, self).get(nick)
     
+class Keys(dict):
+    def get(self, nick):
+        result = nick
+        for i in self.iterkeys():
+            if xchat.nickcmp(nick, i) == 0:
+                result = i
+        return super(Keys, self).get(result)
+    
+    def __getitem__(self, nick):
+        result = nick
+        for i in self.iterkeys():
+            if xchat.nickcmp(nick, i) == 0:
+                result = i
+        return super(Keys, self).__getitem__(result)
+    
+    def __setitem__(self, nick, x):
+        result = nick
+        for i in self.iterkeys():
+            if xchat.nickcmp(nick, i) == 0:
+                result = i
+        return super(Keys, self).__setitem__(result, x)
+    
+    def has_key(self, nick):
+        result = nick
+        for i in self.iterkeys():
+            if xchat.nickcmp(nick, i) == 0:
+                result = i
+        return super(Keys, self).has_key(result)
 
 class Encryptor:
     #List of friend nicks
     friends = []
     #Public keys dictionary
-    keys = {}
+    keys = Keys()
     #Sending public key to others
     sendPubKey = True
     #Private and public self keys
     privKey = None
     pubKey = None
-    
+    #Conversation dicts
     conversations = Conversations()
     
     def __init__(self):
@@ -216,7 +238,7 @@ class Encryptor:
         return self.privKey.sign(hash, self.randfunc(16))
         
     def verify(self, text, data, interlocutor):
-        pubkey = self.keys[interlocutor.lower()]
+        pubkey = self.keys[interlocutor]
         hash = hashlib.sha1(text).digest()
         return pubkey.verify(hash, data)
         
@@ -245,11 +267,11 @@ class Encryptor:
         
         if not os.path.isfile(self.keysPath):
             file = open(self.keysPath, "wb")
-            cPickle.dump({}, file)
+            cPickle.dump(Keys(), file)
             file.close()
         with open(self.keysPath, "rb") as file:
             self.keys = cPickle.load(file)
-            assert isinstance(self.keys, dict)
+            assert isinstance(self.keys, Keys)
             print "Friend keys read from " + self.keysPath
 
         self.pubKey = self.privKey.publickey()
@@ -277,7 +299,7 @@ class Encryptor:
             try:
                 pubKey = cPickle.loads(MsgWrapper.baseX2str(data))
                 assert isinstance(pubKey, RSA.RSAobj_c)
-                self.keys[interlocutor.lower()] = pubKey
+                self.keys[interlocutor] = pubKey
                 file = open(self.keysPath, "wb")
                 cPickle.dump(self.keys, file)
                 file.close()
@@ -341,11 +363,11 @@ class Encryptor:
             #Send public key, invisible to user (raw)
             MsgWrapper.wrap("pub", self.pubKey, interlocutor)
             
-        if self.keys.has_key(interlocutor.lower()):
+        if self.keys.has_key(interlocutor):
             text = word_eol[0]
             
             txtSignature = self.sign(text)
-            txtKey, encryptedTxt = self.cipher(text, interlocutor.lower())
+            txtKey, encryptedTxt = self.cipher(text, interlocutor)
             #Send key
             MsgWrapper.wrap("key", txtKey, interlocutor)
             #Send real message encrypted raw
