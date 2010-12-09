@@ -46,12 +46,13 @@ import hashlib
 import string
 
 
-PREFIXES = { # MUST BE 15 CHARS LONG
+PREFIXES = { # VALUES MUST BE OF SAME SIZE
     "pub": "CryptoChati-PUB", #Public key
     "key": "CryptoChati-KEY", #Encrypted key for next message
     "sig": "CryptoChati-SIG", #Signature of next message
     "enc": "CryptoChati-ENC", #Encrypted text
 }
+PREFIXSIZE = len(PREFIXES["pub"])
 
 class MsgWrapper:
     # Base94
@@ -282,7 +283,6 @@ class Encryptor:
 
     def decode(self, word, word_eol, userdata):
         #print "decode", word, word_eol, userdata
-        
         interlocutor = xchat.get_info("channel")
         
         sigue = False
@@ -295,13 +295,16 @@ class Encryptor:
             return xchat.EAT_NONE
         
         
-        prefix, data = word[1][0:15], word[1][15:]
+        prefix, data = word_eol[1][0:PREFIXSIZE], word_eol[1][PREFIXSIZE:]
         conversation = self.conversations.get(interlocutor)
         #Check for a "public key" type message
         if prefix == PREFIXES["pub"]:
             try:
                 pubKey = cPickle.loads(MsgWrapper.baseX2str(data))
                 assert isinstance(pubKey, RSA.RSAobj_c)
+                if self.keys.has_key(interlocutor):
+                    print "Cryptochati WARNING: Your interlocutor's public " \
+                        "key has changed. She may be an impostor!!"
                 self.keys[interlocutor] = pubKey
                 file = open(self.keysPath, "wb")
                 cPickle.dump(self.keys, file)
@@ -360,7 +363,7 @@ class Encryptor:
             #Send text as it comes (unencrypted to a no-friend)
             return xchat.EAT_NONE            
 
-        prefix = word[0][0:15]
+        prefix = word_eol[0][0:PREFIXSIZE]
         if prefix in PREFIXES.itervalues():
             #Send text as it comes (formated for a friend)
             return xchat.EAT_NONE
