@@ -89,7 +89,7 @@ class MsgWrapper:
     
     @classmethod
     def dec2baseX(self, num):
-        assert num > 0
+        assert num >= 0
         s = []
         while True:
             num, r = divmod(num, self.BASE)
@@ -106,6 +106,8 @@ class MsgWrapper:
     
     @classmethod
     def str2baseX(self, string):
+        #avoid ignoring leading \x00 characters
+        string = "\x01" + string
         num = 0
         for i in string:
             num = num * 256 + ord(i)
@@ -119,7 +121,8 @@ class MsgWrapper:
             num, r = divmod(num, 256)
             s += chr(r)
             if num == 0: break
-        return s[::-1]
+        #reverse and remove leading \x01
+        return s[-2::-1]
 
 
 class Conversations(dict):
