@@ -55,8 +55,8 @@ PREFIXES = { # VALUES MUST BE OF SAME SIZE
 PREFIXSIZE = len(PREFIXES["pub"])
 
 class MsgWrapper:
-    # Base95
-    ALPHABET = string.digits + string.ascii_letters + string.punctuation + "\x20"
+    # Base94
+    ALPHABET = string.digits + string.ascii_letters + string.punctuation
     ALPHABET_LOOKUP = dict((char, i) for (i, char) in enumerate(ALPHABET))
     BASE = len(ALPHABET)
     
