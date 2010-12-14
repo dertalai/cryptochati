@@ -55,8 +55,8 @@ PREFIXES = { # VALUES MUST BE OF SAME SIZE
 PREFIXSIZE = len(PREFIXES["pub"])
 
 class MsgWrapper:
-    # Base94
-    ALPHABET = string.digits + string.ascii_letters + string.punctuation
+    # Base95
+    ALPHABET = string.digits + string.ascii_letters + string.punctuation + "\x20"
     ALPHABET_LOOKUP = dict((char, i) for (i, char) in enumerate(ALPHABET))
     BASE = len(ALPHABET)
     
@@ -183,6 +183,8 @@ class Encryptor:
     pubKey = None
     #Conversation dicts
     conversations = Conversations()
+    
+    KEY_SYMBOL = '\xe2\x9a\xb7 '
     
     def __init__(self):
         #Decode hooks
@@ -334,13 +336,13 @@ class Encryptor:
                 conversation["signature"] = MsgWrapper.baseX2dec(data)
                 if self.verify(conversation["message"],
                     (conversation["signature"], ), interlocutor):
-                    indicator = "e< "
+                    indicator = self.KEY_SYMBOL
             except Exception as inst:
                 print inst
             if not indicator:
                 print "Cryptochati WARNING: Bad signature. " \
                     "Your interlocutor may be an impostor!!"
-                indicator = "!!< "
+                indicator = "!! "
             xchat.emit_print(userdata, indicator + word[0],
                 conversation["message"])
             conversation["txtkey"] = ""
@@ -385,8 +387,8 @@ class Encryptor:
             MsgWrapper.wrap("sig", txtSignature[0], interlocutor) 
             
             #Show real message unencrypted on chat screen
-            xchat.emit_print("Your Message", "e> " + xchat.get_info("nick"),
-                text)
+            xchat.emit_print("Your Message", self.KEY_SYMBOL +
+                xchat.get_info("nick"), text)
             return xchat.EAT_ALL
         else:
             return xchat.EAT_NONE

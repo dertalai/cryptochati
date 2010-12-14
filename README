@@ -5,29 +5,36 @@ GPLv3 License
 Cryptochati XChat-plugin
 
 Cryptochati aims to be a secure and easy to use encryption plugin for XChat.
-It's inspired (in concept, not code) in Pidgin-Encryption plugin.
+It's inspired (in concept, not code) in Pidgin-Encryption plugin. Developed
+and only tested under GNU/Linux (Ubuntu).
 
 Installation:
     1) You must have installed the pycrypto module. If you are under Debian or
     Ubuntu, simply install "python-crypto" package:
-
     $ sudo apt-get install python-crypto
     
-    Otherwise, grab it from http://www.dlitz.net/software/pycrypto/
+    Otherwise, grab it from http://www.dlitz.net/software/pycrypto/ and install
        
     2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
     
     3) Create/edit manually the "friends.txt" file into Cryptochati
-    configuration directory "~/.xchat2/cryptochati.conf/friends.txt". You'll
-    have to create both the "cryptochati.conf" subdirectory and the
+    configuration directory "~/.xchat2/cryptochati.conf/friends.txt".
+    
+    You'll have to create both the "cryptochati.conf" subdirectory and the
     "friends.txt" file if you have never run the plugin before. Add one nick
-    per line.
+    per line, and restart Cryptochati plugin for changes to take effect.
+    
+    Be sure your friend have it installed too, or will receive some ugly
+    looking messages and encryption will be disabled... or simply try it with
+    yourself.
 
 Running:
     The plugin should be autoloaded the next time XChat start. But you can
-	launch it manually with the following command (in XChat):
-	
+	launch it manually in the XChat menu, or with this command line:
 	/py load cryptochati.py
+    
+    You can also restart it with:
+    /py reload cryptochati
 
 XChat commands:
     There are no commands at the moment. You must manually edit configuration
