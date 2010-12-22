@@ -304,7 +304,10 @@ class Encryptor:
             try:
                 pubKey = cPickle.loads(MsgWrapper.baseX2str(data))
                 assert isinstance(pubKey, RSA.RSAobj_c)
-                if self.keys.has_key(interlocutor):
+                #Caution: negative comparation "!=" doesn't work for RSA
+                #objects. It's always True, so you must use "not ==" instead.
+                if self.keys.has_key(interlocutor) and \
+                    not self.keys.get(interlocutor) == pubKey:
                     print "Cryptochati WARNING: Your interlocutor's public " \
                         "key has changed. She may be an impostor!!"
                 self.keys[interlocutor] = pubKey
