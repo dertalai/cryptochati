@@ -337,7 +337,7 @@ class Encryptor:
             try:
                 indicator = None
                 conversation["signature"] = MsgWrapper.baseX2dec(data)
-                if self.verify(conversation["message"],
+                if self.verify(conversation["txtkey"],
                     (conversation["signature"], ), interlocutor):
                     indicator = self.KEY_SYMBOL
             except Exception as inst:
@@ -380,8 +380,8 @@ class Encryptor:
         if self.keys.has_key(interlocutor):
             text = word_eol[0]
             
-            txtSignature = self.sign(text)
             txtKey, encryptedTxt = self.cipher(text, interlocutor)
+            txtSignature = self.sign(txtKey)
             #Send key
             MsgWrapper.wrap("key", txtKey, interlocutor)
             #Send real message encrypted raw
