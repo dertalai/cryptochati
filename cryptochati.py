@@ -65,7 +65,7 @@ class MsgWrapper:
         
     @classmethod
     def wrap(self, type, data, nick):
-        # print "wrap:", type, str(data)[:80], nick
+        #print "wrap:", type, str(data)[:80], nick
         assert PREFIXES.has_key(type)
         
         if type == "pub":
@@ -135,9 +135,15 @@ class Conversations(dict):
         if not self.has_key(nick):
             super(Conversations, self).__setitem__(nick, {
                 "publickey": "",
+                #Encrypted 
                 "txtkey": "",
                 "message": "",
                 "signature": "",
+                #Numer of messages left until showing "Not rotating key"
+                #warning.
+                "nextrcvsign": 0,
+                "nextsndsign": 0,
+                "sndtxtkey": "",
             })
         
         return super(Conversations, self).get(nick)
@@ -216,10 +222,19 @@ class Encryptor:
 
 
     def cipher(self, string, nick):
-        newKey = self.randfunc(32)
-        # Don't let key having \0 character
-        while "\0" in newKey:
+        conversation = self.conversations.get(nick)
+        
+        if conversation["nextsndsign"] < 1:
             newKey = self.randfunc(32)
+            # Don't let key having \0 character
+            while "\0" in newKey:
+                newKey = self.randfunc(32)
+        else:
+            newKey = conversation["sndtxtkey"]
+            newKey = newKey[1:] + newKey[0]
+        
+        print "cipher:", newKey
+        conversation["sndtxtkey"] = newKey
         
         keyText = self.keys[nick].encrypt(newKey, "")[0]
         
@@ -233,6 +248,7 @@ class Encryptor:
 
 
     def decipher(self, key, data):
+        print "decipher:", self.privKey.decrypt(key)
         enc = AES.new(self.privKey.decrypt(key))
 
         return enc.decrypt(data).replace("\0", "")
@@ -323,36 +339,50 @@ class Encryptor:
             conversation["txtkey"] = MsgWrapper.baseX2str(data)
             return xchat.EAT_XCHAT
             
+        elif prefix == PREFIXES["sig"]:
+            try:
+                verified = False
+                conversation["signature"] = MsgWrapper.baseX2dec(data)
+                if self.verify(conversation["txtkey"],
+                    (conversation["signature"], ), interlocutor):
+                    verified = True
+            except Exception as inst:
+                print inst
+            if verified:
+                conversation["signature"] = ""
+                conversation["nextrcvsign"] = 16
+            else:
+                print "Cryptochati WARNING: Bad signature. " \
+                    "Your interlocutor may be an impostor!!"
+            
+            return xchat.EAT_XCHAT
+        
         elif prefix == PREFIXES["enc"]:
             try:
                 decoded = self.decipher(conversation["txtkey"],
                     MsgWrapper.baseX2str(data))
                 self.sendPubKey = False
                 conversation["message"] = decoded
+
+                num = conversation["nextrcvsign"]
+                if num > 0:
+                    conversation["nextrcvsign"] = num - 1
+                else:
+                    print "Cryptochati WARNING: No rotating incoming key. " \
+                        "Your interlocutor is not following the security " \
+                        "protocol."
+
+                xchat.emit_print(userdata, self.KEY_SYMBOL + word[0],
+                    conversation["message"])
+                conversation["message"] = -1
+                # Rotate txtkey for next message
+                txtkey = self.privKey.decrypt(conversation["txtkey"])
+                conversation["txtkey"] = self.privKey.encrypt(txtkey[1:] + txtkey[0], "")[0]
+                
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
                 
-        elif prefix == PREFIXES["sig"]:
-            try:
-                indicator = None
-                conversation["signature"] = MsgWrapper.baseX2dec(data)
-                if self.verify(conversation["txtkey"],
-                    (conversation["signature"], ), interlocutor):
-                    indicator = self.KEY_SYMBOL
-            except Exception as inst:
-                print inst
-            if not indicator:
-                print "Cryptochati WARNING: Bad signature. " \
-                    "Your interlocutor may be an impostor!!"
-                indicator = "!! "
-            xchat.emit_print(userdata, indicator + word[0],
-                conversation["message"])
-            conversation["txtkey"] = ""
-            conversation["message"] = ""
-            conversation["signature"] = ""
-            return xchat.EAT_XCHAT
-        
         return xchat.EAT_NONE
 
 	
@@ -367,8 +397,9 @@ class Encryptor:
         if not sigue:
             #Send text as it comes (unencrypted to a no-friend)
             return xchat.EAT_NONE            
-
+        
         prefix = word_eol[0][0:PREFIXSIZE]
+        conversation = self.conversations.get(interlocutor)
         if prefix in PREFIXES.itervalues():
             #Send text as it comes (formated for a friend)
             return xchat.EAT_NONE
@@ -381,13 +412,18 @@ class Encryptor:
             text = word_eol[0]
             
             txtKey, encryptedTxt = self.cipher(text, interlocutor)
-            txtSignature = self.sign(txtKey)
-            #Send key
-            MsgWrapper.wrap("key", txtKey, interlocutor)
+            if conversation["nextsndsign"] < 1:
+                txtSignature = self.sign(txtKey)
+                #Send key
+                MsgWrapper.wrap("key", txtKey, interlocutor)
+                #Send signature
+                MsgWrapper.wrap("sig", txtSignature[0], interlocutor)
+                conversation["nextsndsign"] = 16
+            else:
+                num = conversation["nextsndsign"]
+                conversation["nextsndsign"] = num - 1
             #Send real message encrypted raw
             MsgWrapper.wrap("enc", encryptedTxt, interlocutor)
-            #Send signature
-            MsgWrapper.wrap("sig", txtSignature[0], interlocutor) 
             
             #Show real message unencrypted on chat screen
             xchat.emit_print("Your Message", self.KEY_SYMBOL +
