@@ -419,6 +419,7 @@ class Encryptor:
         if conversation["sndpublickey"]:
             #Send public key, invisible to user (raw)
             MsgWrapper.wrap("pub", self.pubKey, interlocutor)
+            conversation["sndpublickey"] = False
             
         if self.keys.has_key(interlocutor):
             text = word_eol[0]
