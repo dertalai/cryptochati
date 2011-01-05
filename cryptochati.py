@@ -144,9 +144,18 @@ class Conversations(dict):
                 "nextrcvsign": 0,
                 "nextsndsign": 0,
                 "sndtxtkey": "",
+                "sndpublickey": True
             })
         
         return super(Conversations, self).get(nick)
+    
+    def reset(self, nick):
+        conversation = self.get(nick)
+        conversation["nextrcvsign"] = 0
+        conversation["nextsndsign"] = 0
+        conversation["sndpublickey"] = True
+        
+        
     
 class Keys(dict):
     def get(self, nick):
@@ -334,6 +343,7 @@ class Encryptor:
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 print inst
+            self.conversations.reset(interlocutor)
 
         elif prefix == PREFIXES["key"]:
             conversation["txtkey"] = MsgWrapper.baseX2str(data)
@@ -347,6 +357,7 @@ class Encryptor:
                     (conversation["signature"], ), interlocutor):
                     verified = True
             except Exception as inst:
+                self.conversations.reset(interlocutor)
                 print inst
             if verified:
                 conversation["signature"] = ""
@@ -363,7 +374,7 @@ class Encryptor:
                     MsgWrapper.baseX2str(data))
                 self.sendPubKey = False
                 conversation["message"] = decoded
-
+                
                 num = conversation["nextrcvsign"]
                 if num > 0:
                     conversation["nextrcvsign"] = num - 1
@@ -371,7 +382,7 @@ class Encryptor:
                     print "Cryptochati WARNING: No rotating incoming key. " \
                         "Your interlocutor is not following the security " \
                         "protocol."
-
+                
                 xchat.emit_print(userdata, self.KEY_SYMBOL + word[0],
                     conversation["message"])
                 conversation["message"] = -1
@@ -381,6 +392,7 @@ class Encryptor:
                 
                 return xchat.EAT_XCHAT
             except Exception as inst:
+                self.conversations.reset(interlocutor)
                 print inst
                 
         return xchat.EAT_NONE
@@ -404,7 +416,7 @@ class Encryptor:
             #Send text as it comes (formated for a friend)
             return xchat.EAT_NONE
         
-        if self.sendPubKey:
+        if conversation["sndpublickey"]:
             #Send public key, invisible to user (raw)
             MsgWrapper.wrap("pub", self.pubKey, interlocutor)
             
