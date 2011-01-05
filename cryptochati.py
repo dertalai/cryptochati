@@ -431,7 +431,7 @@ class Encryptor:
                 MsgWrapper.wrap("key", txtKey, interlocutor)
                 #Send signature
                 MsgWrapper.wrap("sig", txtSignature[0], interlocutor)
-                conversation["nextsndsign"] = 16
+                conversation["nextsndsign"] = 15 #just used one
             else:
                 num = conversation["nextsndsign"]
                 conversation["nextsndsign"] = num - 1
