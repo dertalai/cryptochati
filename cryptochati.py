@@ -233,7 +233,7 @@ class Encryptor:
             newKey = conversation["sndtxtkey"]
             newKey = newKey[1:] + newKey[0]
         
-        print "cipher:", newKey
+        #print "cipher:", newKey
         conversation["sndtxtkey"] = newKey
         
         keyText = self.keys[nick].encrypt(newKey, "")[0]
@@ -248,7 +248,7 @@ class Encryptor:
 
 
     def decipher(self, key, data):
-        print "decipher:", self.privKey.decrypt(key)
+        #print "decipher:", self.privKey.decrypt(key)
         enc = AES.new(self.privKey.decrypt(key))
 
         return enc.decrypt(data).replace("\0", "")
