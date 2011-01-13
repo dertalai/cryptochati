@@ -236,7 +236,7 @@ class Encryptor:
         
         sigue = False
         for friend in self.friends:
-            if xchat.nickcmp(interlocutor, friend) == 0:
+            if xchat.nickcmp(nick, friend) == 0:
                 sigue = True
                 break
         if sigue:
