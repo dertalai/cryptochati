@@ -206,6 +206,8 @@ class Encryptor:
         xchat.hook_print("Private Message", self.decode, "Private Message")
         xchat.hook_print("Private Message to Dialog", self.decode, "Private Message to Dialog")
         
+        xchat.hook_print("Quit", self.quithook, "Quit")
+        
         #Generic encode hook
         self.allhook = xchat.hook_command("", self.encode)
         
@@ -227,6 +229,21 @@ class Encryptor:
         
         #Create/load configuration
         self.openConfiguration()
+
+    def quithook(self, word, word_eol, userdata):
+        # print "quit:", word, word_eol, userdata
+        nick = word[0]
+        
+        sigue = False
+        for friend in self.friends:
+            if xchat.nickcmp(interlocutor, friend) == 0:
+                sigue = True
+                break
+        if sigue:
+            #Reset the quitting-friend conversation
+            self.conversations.reset(nick)
+        
+        return xchat.EAT_NONE
 
 
 
@@ -340,13 +357,15 @@ class Encryptor:
                 cPickle.dump(self.keys, file)
                 file.close()
                 conversation["publickey"] = pubKey
+                self.conversations.reset(interlocutor)
+                
                 return xchat.EAT_XCHAT
             except Exception as inst:
-                print inst
-            self.conversations.reset(interlocutor)
-
+                print inst        
+        
         elif prefix == PREFIXES["key"]:
             conversation["txtkey"] = MsgWrapper.baseX2str(data)
+            
             return xchat.EAT_XCHAT
             
         elif prefix == PREFIXES["sig"]:
