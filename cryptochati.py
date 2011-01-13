@@ -409,6 +409,9 @@ class Encryptor:
                 txtkey = self.privKey.decrypt(conversation["txtkey"])
                 conversation["txtkey"] = self.privKey.encrypt(txtkey[1:] + txtkey[0], "")[0]
                 
+                #Decrypted correctly, so the interlocutor already has your pubkey
+                conversation["sndpublickey"] = False
+                
                 return xchat.EAT_XCHAT
             except Exception as inst:
                 self.conversations.reset(interlocutor)
