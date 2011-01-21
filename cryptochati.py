@@ -51,6 +51,7 @@ PREFIXES = { # VALUES MUST BE OF SAME SIZE
     "key": "CryptoChati-KEY", #Encrypted key for next message
     "sig": "CryptoChati-SIG", #Signature of next message
     "enc": "CryptoChati-ENC", #Encrypted text
+    "mul": "CryptoChati-MUL", #Multipart encapsulator
 }
 PREFIXSIZE = len(PREFIXES["pub"])
 
@@ -64,30 +65,57 @@ class MsgWrapper:
         pass
         
     @classmethod
-    def wrap(self, type, data, nick):
+    def wrap(self, datatype, data, nick):
         #print "wrap:", type, str(data)[:80], nick
-        assert PREFIXES.has_key(type)
+        assert PREFIXES.has_key(datatype)
         
-        if type == "pub":
-            encodedPub = self.str2baseX(cPickle.dumps(data))
-            xchat.get_context().command("raw privmsg " + nick + " " +
-                PREFIXES[type] + encodedPub)
+        if datatype == "pub":
+            encoded = self.str2baseX(cPickle.dumps(data))
                 
-        elif type == "key":
-            encodedKey = self.str2baseX(data)
-            xchat.get_context().command("raw privmsg " + nick + " " +
-                PREFIXES[type] + encodedKey)
+        elif datatype == "key":
+            encoded = self.str2baseX(data)
         
-        elif type == "sig":
-            encodedSig = self.dec2baseX(data)
-            xchat.get_context().command("raw privmsg " + nick + " " +
-                PREFIXES[type] + encodedSig)
+        elif datatype == "sig":
+            encoded = self.dec2baseX(data)
             
-        elif type == "enc":
-            encodedTxt = self.str2baseX(data)
-            xchat.get_context().command("raw privmsg " + nick + " " +
-                PREFIXES[type] + encodedTxt)
+        elif datatype == "enc":
+            encoded = self.str2baseX(data)
+        
+        elif datatype == "mul":
+            encoded = data
+            
+        if len(encoded) > 384:
+            MsgWrapper.wrap("mul", encoded[384:], nick)
+            envio = PREFIXES[datatype] + encoded[:384]
+            xchat.get_context().command("raw privmsg " + nick + " " + envio)
+        else:
+            envio = PREFIXES[datatype] + encoded
+            xchat.get_context().command("raw privmsg " + nick + " " + envio)
     
+    @classmethod
+    def unwrap(self, data):
+        # Get datatype
+        datatype = None
+        prefix = data[:PREFIXSIZE]
+        for i in PREFIXES.iterkeys():
+            if PREFIXES[i] == prefix:
+                datatype = i
+                break
+
+        decoded = None
+        encoded = data[PREFIXSIZE:]        
+        if datatype == "pub":
+            decoded = cPickle.loads(self.baseX2str(encoded))
+        elif datatype == "key":
+            decoded = self.baseX2str(encoded)
+        elif datatype == "sig":
+            decoded = self.baseX2dec(encoded)
+        elif datatype == "enc":
+            decoded = self.baseX2str(encoded)
+        
+        return datatype, decoded
+
+        
     @classmethod
     def dec2baseX(self, num):
         assert num >= 0
@@ -144,7 +172,8 @@ class Conversations(dict):
                 "nextrcvsign": 0,
                 "nextsndsign": 0,
                 "sndtxtkey": "",
-                "sndpublickey": True
+                "sndpublickey": True,
+                "multipart": "",
             })
         
         return super(Conversations, self).get(nick)
@@ -154,6 +183,7 @@ class Conversations(dict):
         conversation["nextrcvsign"] = 0
         conversation["nextsndsign"] = 0
         conversation["sndpublickey"] = True
+        conversation["multipart"] = ""
         
         
     
@@ -339,12 +369,13 @@ class Encryptor:
             return xchat.EAT_NONE
         
         
-        prefix, data = word_eol[1][0:PREFIXSIZE], word_eol[1][PREFIXSIZE:]
+        #prefix, data = word_eol[1][0:PREFIXSIZE], word_eol[1][PREFIXSIZE:]
+        datatype, data = MsgWrapper.unwrap(word_eol[1])
         conversation = self.conversations.get(interlocutor)
         #Check for a "public key" type message
-        if prefix == PREFIXES["pub"]:
+        if datatype == "pub":
             try:
-                pubKey = cPickle.loads(MsgWrapper.baseX2str(data))
+                pubKey = data
                 assert isinstance(pubKey, RSA.RSAobj_c)
                 #Caution: negative comparation "!=" doesn't work for RSA
                 #objects. It's always True, so you must use "not ==" instead.
@@ -363,15 +394,15 @@ class Encryptor:
             except Exception as inst:
                 print inst        
         
-        elif prefix == PREFIXES["key"]:
-            conversation["txtkey"] = MsgWrapper.baseX2str(data)
+        elif datatype == "key":
+            conversation["txtkey"] = data
             
             return xchat.EAT_XCHAT
             
-        elif prefix == PREFIXES["sig"]:
+        elif datatype == "sig":
             try:
                 verified = False
-                conversation["signature"] = MsgWrapper.baseX2dec(data)
+                conversation["signature"] = data
                 if self.verify(conversation["txtkey"],
                     (conversation["signature"], ), interlocutor):
                     verified = True
@@ -387,10 +418,9 @@ class Encryptor:
             
             return xchat.EAT_XCHAT
         
-        elif prefix == PREFIXES["enc"]:
+        elif datatype == "enc":
             try:
-                decoded = self.decipher(conversation["txtkey"],
-                    MsgWrapper.baseX2str(data))
+                decoded = self.decipher(conversation["txtkey"], data)
                 self.sendPubKey = False
                 conversation["message"] = decoded
                 
