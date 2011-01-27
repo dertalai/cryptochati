@@ -67,6 +67,7 @@ class MsgWrapper:
     @classmethod
     def wrap(self, datatype, data, nick):
         #print "wrap:", type, str(data)[:80], nick
+        SIZE = 384 #Max size allowed for one part
         assert PREFIXES.has_key(datatype)
         
         if datatype == "pub":
@@ -84,9 +85,10 @@ class MsgWrapper:
         elif datatype == "mul":
             encoded = data
             
-        if len(encoded) > 384:
-            MsgWrapper.wrap("mul", encoded[384:], nick)
-            envio = PREFIXES[datatype] + encoded[:384]
+        if len(encoded) > SIZE:
+            #Sends recursively parts in this order: N, N-1, ..., 1
+            MsgWrapper.wrap("mul", encoded[SIZE:], nick)
+            envio = PREFIXES[datatype] + encoded[:SIZE]
             xchat.get_context().command("raw privmsg " + nick + " " + envio)
         else:
             envio = PREFIXES[datatype] + encoded
@@ -112,6 +114,8 @@ class MsgWrapper:
             decoded = self.baseX2dec(encoded)
         elif datatype == "enc":
             decoded = self.baseX2str(encoded)
+        elif datatype == "mul":
+            decoded = encoded
         
         return datatype, decoded
 
@@ -369,9 +373,17 @@ class Encryptor:
             return xchat.EAT_NONE
         
         
-        #prefix, data = word_eol[1][0:PREFIXSIZE], word_eol[1][PREFIXSIZE:]
-        datatype, data = MsgWrapper.unwrap(word_eol[1])
         conversation = self.conversations.get(interlocutor)
+        datatype, data = MsgWrapper.unwrap(word_eol[1] + conversation["multipart"])
+        
+        #First, check for a multipart message
+        if datatype == "mul":
+            conversation["multipart"] = data
+            #print "mul:", conversation["multipart"]
+            return xchat.EAT_XCHAT
+        else:
+            conversation["multipart"] = ""
+
         #Check for a "public key" type message
         if datatype == "pub":
             try:
@@ -446,7 +458,8 @@ class Encryptor:
             except Exception as inst:
                 self.conversations.reset(interlocutor)
                 print inst
-                
+        
+        
         return xchat.EAT_NONE
 
 	
