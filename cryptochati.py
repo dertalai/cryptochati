@@ -245,6 +245,13 @@ class Encryptor:
         #Generic encode hook
         self.allhook = xchat.hook_command("", self.encode)
         
+        #Friend management hook
+        xchat.hook_command("Friend", self.friendhook, "Friend", help=
+"""Usage:
+FRIEND ADD <nick> - adds <nick> as a trusted friend
+FRIEND DEL <nick> - deletes <nick> from trusted friends
+FRIEND LIST - lists current trusted friends""")
+        
         #Random generator
         self.randfunc = RandomPool().get_bytes
         
@@ -279,8 +286,14 @@ class Encryptor:
         
         return xchat.EAT_NONE
 
-
-
+    def friendhook(self, word, word_eol, userdata):
+        if len(word) < 2:
+            xchat.command("help friend")
+        elif word[1].lower() == "list":
+            print self.friends
+        return xchat.EAT_XCHAT
+    
+    
     def cipher(self, string, nick):
         conversation = self.conversations.get(nick)
         
@@ -326,6 +339,7 @@ class Encryptor:
         
 
     def openConfiguration(self):
+        PUBKEYSIZE = 1024
         if not os.path.isfile(self.friendsPath):
             open(self.friendsPath, "wb").close()
         with open(self.friendsPath, "rb") as file:
@@ -342,7 +356,7 @@ class Encryptor:
             assert isinstance(self.privKey, RSA.RSAobj_c)
             
         else:
-            self.privKey = RSA.generate(512, self.randfunc)
+            self.privKey = RSA.generate(PUBKEYSIZE, self.randfunc)
             with open(self.myKeyPath, "wb") as file:
                 cPickle.dump(self.privKey, file)
                 print "Private key generated and saved in " + self.myKeyPath
