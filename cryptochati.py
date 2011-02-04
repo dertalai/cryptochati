@@ -245,13 +245,7 @@ class Encryptor:
         #Generic encode hook
         self.allhook = xchat.hook_command("", self.encode)
         
-        #Friend management hook
-        xchat.hook_command("Friend", self.friendhook, "Friend", help=
-"""Usage:
-FRIEND ADD <nick> - adds <nick> as a trusted friend
-FRIEND DEL <nick> - deletes <nick> from trusted friends
-FRIEND LIST - lists current trusted friends""")
-        
+        #TODO RandomPool is know to be broken
         #Random generator
         self.randfunc = RandomPool().get_bytes
         
@@ -271,6 +265,15 @@ FRIEND LIST - lists current trusted friends""")
         #Create/load configuration
         self.openConfiguration()
 
+        #Friend management hook
+        xchat.hook_command("Friend", self.friendhook, "Friend", help=
+"""Usage:
+FRIEND ADD <nick> - adds <nick> as a trusted friend
+FRIEND DEL <nick> - deletes <nick> from trusted friends
+FRIEND LIST - lists current trusted friends""")
+
+
+
     def quithook(self, word, word_eol, userdata):
         # print "quit:", word, word_eol, userdata
         nick = word[0]
@@ -289,8 +292,17 @@ FRIEND LIST - lists current trusted friends""")
     def friendhook(self, word, word_eol, userdata):
         if len(word) < 2:
             xchat.command("help friend")
-        elif word[1].lower() == "list":
-            print self.friends
+        else:
+            command = word[1].lower()
+            if command == "list":
+                print self.friends
+            elif command == "add" and len(word) == 3:
+                pass
+            elif (command == "del" or command == "delete") and len(word) == 3:
+                pass
+            else:
+                xchat.command("help friend")
+                
         return xchat.EAT_XCHAT
     
     
