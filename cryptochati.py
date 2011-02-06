@@ -297,14 +297,45 @@ FRIEND LIST - lists current trusted friends""")
             if command == "list":
                 print self.friends
             elif command == "add" and len(word) == 3:
-                pass
+                addnick = word[2]
+                found = False
+                for nick in self.friends:
+                    if xchat.nickcmp(nick, addnick) == 0:
+                        found = True
+                        print "Nick was already added as " + nick
+                        break
+                
+                if not found:
+                    self.friends.append(addnick)
+                    self.savefriends()
+                    print addnick + " has been added as a friend"
+
             elif (command == "del" or command == "delete") and len(word) == 3:
-                pass
+                delnick = word[2]
+                found = False
+                for nick in self.friends:
+                    if xchat.nickcmp(nick, delnick) == 0:
+                        found = nick
+                        break
+                
+                if found:
+                    self.friends.remove(found)
+                    self.savefriends()
+                    print found + " has been deleted from friends list"
+                else:
+                    print delnick + " was not on friends list"
+                    
             else:
                 xchat.command("help friend")
                 
         return xchat.EAT_XCHAT
+
     
+    def savefriends(self):
+        with open(self.friendsPath, "wb") as file:
+            for i in self.friends:
+                file.writelines(i + "\n")
+
     
     def cipher(self, string, nick):
         conversation = self.conversations.get(nick)
