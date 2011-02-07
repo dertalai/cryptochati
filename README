@@ -14,29 +14,30 @@ Installation:
     $ sudo apt-get install python-crypto
     
     Otherwise, grab it from http://www.dlitz.net/software/pycrypto/ and install
+    it.
        
     2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
     
-    3) Create/edit manually the "friends.txt" file into Cryptochati
-    configuration directory "~/.xchat2/cryptochati.conf/friends.txt".
+    3) Run (or restart) XChat. The plugin should be loaded automatically.
     
-    You'll have to create both the "cryptochati.conf" subdirectory and the
-    "friends.txt" file if you have never run the plugin before. Add one nick
-    per line, and restart Cryptochati plugin for changes to take effect.
+    4) Tell Cryptochati who are your "crypto-friends":
+    /FRIEND ADD <nick>
     
-    Be sure your friend have it installed too, or will receive some ugly
-    looking messages and encryption will be disabled... or simply try it with
-    yourself.
+    5) Be sure your friend took the same steps and just talk to him/her in a
+    dialog window... or simply try it with yourself.
 
 Running:
-    The plugin should be autoloaded the next time XChat start. But you can
+    The plugin should be autoloaded every time XChat starts. But you can
 	launch it manually in the XChat menu, or with this command line:
-	/py load cryptochati.py
+	/PY LOAD cryptochati.py
     
     You can also restart it with:
-    /py reload cryptochati
+    /PY RELOAD cryptochati.py
+    
+    Or disable it:
+    /PY UNLOAD cryptochati.py
 
 XChat commands:
-    There are no commands at the moment. You must manually edit configuration
-    files.
-
+    /FRIEND ADD <nick> - adds <nick> as a trusted friend
+    /FRIEND DEL <nick> - deletes <nick> from trusted friends
+    /FRIEND LIST - lists current trusted friends

@@ -39,7 +39,13 @@ __module_author__ = __author__
 import xchat
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
-from Crypto.Util.randpool import RandomPool
+try:
+    from Crypto.Random import get_random_bytes
+except ImportError:
+    try:
+        from os import urandom as get_random_bytes
+    except ImportError:
+        get_random_bytes = open("/dev/urandom", "rb").read
 import cPickle
 import os
 import hashlib
@@ -247,7 +253,7 @@ class Encryptor:
         
         #TODO RandomPool is know to be broken
         #Random generator
-        self.randfunc = RandomPool().get_bytes
+        self.randfunc = get_random_bytes
         
         #Initialize configuration directory
         userDir = os.path.expanduser("~")
