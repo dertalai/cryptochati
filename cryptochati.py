@@ -26,7 +26,7 @@
 Read README file for features, installation and use of this plugin.
 """
 
-__version__ = "0.03"
+__version__ = "0.04"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
@@ -175,13 +175,12 @@ class Conversations(dict):
                 "publickey": "",
                 #Encrypted 
                 "txtkey": "",
-                "message": "",
                 "signature": "",
                 #Numer of messages left until showing "Not rotating key"
                 #warning.
-                "nextrcvsign": 0,
-                "nextsndsign": 0,
-                "sndtxtkey": "",
+#                "nextrcvsign": 0,
+#                "nextsndsign": 0,
+                "sndtxtkey": None,
                 "sndpublickey": True,
                 "multipart": "",
             })
@@ -231,8 +230,6 @@ class Encryptor:
     friends = []
     #Public keys dictionary
     keys = Keys()
-    #Sending public key to others
-    sendPubKey = True
     #Private and public self keys
     privKey = None
     pubKey = None
@@ -346,34 +343,27 @@ FRIEND LIST - lists current trusted friends""")
     def cipher(self, string, nick):
         conversation = self.conversations.get(nick)
         
-        if conversation["nextsndsign"] < 1:
+        keyText = None
+        if conversation["sndtxtkey"] == None:
             newKey = self.randfunc(32)
-            # Don't let key having \0 character
-            while "\0" in newKey:
-                newKey = self.randfunc(32)
-        else:
-            newKey = conversation["sndtxtkey"]
-            newKey = newKey[1:] + newKey[0]
+            iv = self.randfunc(16)
+            conversation["sndtxtkey"] = AES.new(newKey, AES.MODE_CBC, iv)
+            keyText = self.keys[nick].encrypt(newKey + iv, "")[0]
+        enc = conversation["sndtxtkey"]
         
-        #print "cipher:", newKey
-        conversation["sndtxtkey"] = newKey
-        
-        keyText = self.keys[nick].encrypt(newKey, "")[0]
-        
-        enc = AES.new(newKey)
         #Fill it with null until reaching block size
         newString = string + "\0" * (enc.block_size - (len(string) % enc.block_size))
         newString = enc.encrypt(newString)
-
+        
+        #Update key chaining
+        conversation["sndtxtkey"] = enc
+        
         return keyText, newString
 
 
 
     def decipher(self, key, data):
-        #print "decipher:", self.privKey.decrypt(key)
-        enc = AES.new(self.privKey.decrypt(key))
-
-        return enc.decrypt(data).replace("\0", "")
+        return key.decrypt(data).replace("\0", "")
         
 
         
@@ -470,7 +460,9 @@ FRIEND LIST - lists current trusted friends""")
                 print inst        
         
         elif datatype == "key":
-            conversation["txtkey"] = data
+            decoded = self.privKey.decrypt(data)
+            key, iv = decoded[:32], decoded[32:]
+            conversation["txtkey"] = AES.new(key, AES.MODE_CBC, iv)
             
             return xchat.EAT_XCHAT
             
@@ -496,24 +488,7 @@ FRIEND LIST - lists current trusted friends""")
         elif datatype == "enc":
             try:
                 decoded = self.decipher(conversation["txtkey"], data)
-                self.sendPubKey = False
-                conversation["message"] = decoded
-                
-                num = conversation["nextrcvsign"]
-                if num > 0:
-                    conversation["nextrcvsign"] = num - 1
-                else:
-                    print "Cryptochati WARNING: No rotating incoming key. " \
-                        "Your interlocutor is not following the security " \
-                        "protocol."
-                
-                xchat.emit_print(userdata, self.KEY_SYMBOL + word[0],
-                    conversation["message"])
-                conversation["message"] = -1
-                # Rotate txtkey for next message
-                txtkey = self.privKey.decrypt(conversation["txtkey"])
-                conversation["txtkey"] = self.privKey.encrypt(txtkey[1:] + txtkey[0], "")[0]
-                
+                xchat.emit_print(userdata, self.KEY_SYMBOL + word[0], decoded)
                 #Decrypted correctly, so the interlocutor already has your pubkey
                 conversation["sndpublickey"] = False
                 
@@ -553,16 +528,13 @@ FRIEND LIST - lists current trusted friends""")
             text = word_eol[0]
             
             txtKey, encryptedTxt = self.cipher(text, interlocutor)
-            if conversation["nextsndsign"] < 1:
+            if txtKey != None:
                 txtSignature = self.sign(txtKey)
                 #Send key
                 MsgWrapper.wrap("key", txtKey, interlocutor)
                 #Send signature
                 MsgWrapper.wrap("sig", txtSignature[0], interlocutor)
-                conversation["nextsndsign"] = 15 #just used one
-            else:
-                num = conversation["nextsndsign"]
-                conversation["nextsndsign"] = num - 1
+
             #Send real message encrypted raw
             MsgWrapper.wrap("enc", encryptedTxt, interlocutor)
             
