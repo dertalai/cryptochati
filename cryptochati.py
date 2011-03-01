@@ -173,13 +173,10 @@ class Conversations(dict):
         if not self.has_key(nick):
             super(Conversations, self).__setitem__(nick, {
                 "publickey": "",
-                #Encrypted 
-                "txtkey": "",
+                #AES key
+                "txtkey": None,
+                "keyiv": None,
                 "signature": "",
-                #Numer of messages left until showing "Not rotating key"
-                #warning.
-#                "nextrcvsign": 0,
-#                "nextsndsign": 0,
                 "sndtxtkey": None,
                 "sndpublickey": True,
                 "multipart": "",
@@ -189,9 +186,8 @@ class Conversations(dict):
     
     def reset(self, nick):
         conversation = self.get(nick)
-        conversation["nextrcvsign"] = 0
-        conversation["nextsndsign"] = 0
         conversation["sndpublickey"] = True
+        conversation["sndtxtkey"] = None
         conversation["multipart"] = ""
         
         
@@ -463,6 +459,7 @@ FRIEND LIST - lists current trusted friends""")
             decoded = self.privKey.decrypt(data)
             key, iv = decoded[:32], decoded[32:]
             conversation["txtkey"] = AES.new(key, AES.MODE_CBC, iv)
+            conversation["keyiv"] = decoded
             
             return xchat.EAT_XCHAT
             
@@ -470,7 +467,7 @@ FRIEND LIST - lists current trusted friends""")
             try:
                 verified = False
                 conversation["signature"] = data
-                if self.verify(conversation["txtkey"],
+                if self.verify(conversation["keyiv"],
                     (conversation["signature"], ), interlocutor):
                     verified = True
             except Exception as inst:
@@ -478,7 +475,7 @@ FRIEND LIST - lists current trusted friends""")
                 print inst
             if verified:
                 conversation["signature"] = ""
-                conversation["nextrcvsign"] = 16
+                conversation["keyiv"] = None
             else:
                 print "Cryptochati WARNING: Bad signature. " \
                     "Your interlocutor may be an impostor!!"
