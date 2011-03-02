@@ -176,7 +176,7 @@ class Conversations(dict):
                 #AES key
                 "txtkey": None,
                 "keyiv": None,
-                "signature": "",
+                "signature": None,
                 "sndtxtkey": None,
                 "sndpublickey": True,
                 "multipart": "",
@@ -466,15 +466,15 @@ FRIEND LIST - lists current trusted friends""")
         elif datatype == "sig":
             try:
                 verified = False
-                conversation["signature"] = data
-                if self.verify(conversation["keyiv"],
-                    (conversation["signature"], ), interlocutor):
+                conversation["signature"] = (data, )
+                if self.verify(conversation["keyiv"], conversation["signature"],
+                        interlocutor):
                     verified = True
             except Exception as inst:
                 self.conversations.reset(interlocutor)
                 print inst
             if verified:
-                conversation["signature"] = ""
+                conversation["signature"] = None
                 conversation["keyiv"] = None
             else:
                 print "Cryptochati WARNING: Bad signature. " \
@@ -526,7 +526,7 @@ FRIEND LIST - lists current trusted friends""")
             
             txtKey, encryptedTxt = self.cipher(text, interlocutor)
             if txtKey != None:
-                txtSignature = self.sign(txtKey)
+                txtSignature = self.sign(self.privKey.decrypt(txtKey))
                 #Send key
                 MsgWrapper.wrap("key", txtKey, interlocutor)
                 #Send signature
