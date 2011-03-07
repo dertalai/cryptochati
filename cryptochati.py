@@ -186,6 +186,8 @@ class Conversations(dict):
     
     def reset(self, nick):
         conversation = self.get(nick)
+        conversation["txtkey"] = None
+        conversation["keyiv"] = None
         conversation["sndpublickey"] = True
         conversation["sndtxtkey"] = None
         conversation["multipart"] = ""
@@ -344,7 +346,7 @@ FRIEND LIST - lists current trusted friends""")
             newKey = self.randfunc(32)
             iv = self.randfunc(16)
             conversation["sndtxtkey"] = AES.new(newKey, AES.MODE_CBC, iv)
-            keyText = self.keys[nick].encrypt(newKey + iv, "")[0]
+            keyText = newKey + iv
         enc = conversation["sndtxtkey"]
         
         #Fill it with null until reaching block size
@@ -526,9 +528,10 @@ FRIEND LIST - lists current trusted friends""")
             
             txtKey, encryptedTxt = self.cipher(text, interlocutor)
             if txtKey != None:
-                txtSignature = self.sign(self.privKey.decrypt(txtKey))
+                txtSignature = self.sign(txtKey)
                 #Send key
-                MsgWrapper.wrap("key", txtKey, interlocutor)
+                MsgWrapper.wrap("key", self.keys[interlocutor].encrypt(txtKey, "")[0],
+                    interlocutor)
                 #Send signature
                 MsgWrapper.wrap("sig", txtSignature[0], interlocutor)
 

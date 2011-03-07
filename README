@@ -15,7 +15,7 @@ Installation:
     
     Otherwise, grab it from http://www.dlitz.net/software/pycrypto/ and install
     it.
-       
+    
     2) Copy the file named "cryptochati.py" in the "~/.xchat2/" directory
     
     3) Run (or restart) XChat. The plugin should be loaded automatically.
@@ -28,8 +28,8 @@ Installation:
 
 Running:
     The plugin should be autoloaded every time XChat starts. But you can
-	launch it manually in the XChat menu, or with this command line:
-	/PY LOAD cryptochati.py
+    launch it manually in the XChat menu, or with this command line:
+    /PY LOAD cryptochati.py
     
     You can also restart it with:
     /PY RELOAD cryptochati.py
