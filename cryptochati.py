@@ -455,7 +455,7 @@ FRIEND LIST - lists current trusted friends""")
                 
                 return xchat.EAT_XCHAT
             except Exception as inst:
-                print inst        
+                print inst
         
         elif datatype == "key":
             decoded = self.privKey.decrypt(data)
@@ -486,6 +486,10 @@ FRIEND LIST - lists current trusted friends""")
         
         elif datatype == "enc":
             try:
+                if conversation["txtkey"] == None:
+                    exceptionmsg = "Cryptochati WARNING: It's not possible to decrypt " \
+                    "your interlocutor's message. She's using unkown conversation key. Send her a message to resynchronize."
+                    raise Exception(exceptionmsg)
                 decoded = self.decipher(conversation["txtkey"], data)
                 xchat.emit_print(userdata, self.KEY_SYMBOL + word[0], decoded)
                 #Decrypted correctly, so the interlocutor already has your pubkey
