@@ -242,6 +242,7 @@ class Encryptor:
         xchat.hook_print("Private Message to Dialog", self.decode, "Private Message to Dialog")
         
         xchat.hook_print("Quit", self.quithook, "Quit")
+        xchat.hook_print("Connected", self.connectedhook, "Connected")
         
         #Generic encode hook
         self.allhook = xchat.hook_command("", self.encode)
@@ -251,8 +252,7 @@ class Encryptor:
         self.randfunc = get_random_bytes
         
         #Initialize configuration directory
-        userDir = os.path.expanduser("~")
-        confDir = os.path.join(userDir, ".xchat2/cryptochati.conf")
+        confDir = xchat.get_info("xchatdirfs") + "/cryptochati.conf"
         if not os.path.isdir(confDir):
             os.makedirs(confDir, 0700)
         
@@ -276,7 +276,7 @@ FRIEND LIST - lists current trusted friends""")
 
 
     def quithook(self, word, word_eol, userdata):
-        # print "quit:", word, word_eol, userdata
+        #print "quithook:", word[0]
         nick = word[0]
         
         sigue = False
@@ -290,6 +290,13 @@ FRIEND LIST - lists current trusted friends""")
         
         return xchat.EAT_NONE
 
+    def connectedhook(self, word, word_eol, userdata):
+        #print "connected: ", word
+        #Reset all conversations
+        self.conversations = Conversations()
+        
+        return xchat.EAT_NONE
+    
     def friendhook(self, word, word_eol, userdata):
         if len(word) < 2:
             xchat.command("help friend")
