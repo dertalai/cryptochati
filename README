@@ -41,3 +41,6 @@ XChat commands:
     /FRIEND ADD <nick> - adds <nick> as a trusted friend
     /FRIEND DEL <nick> - deletes <nick> from trusted friends
     /FRIEND LIST - lists current trusted friends
+
+Check http://github.com/dertalai/cryptochati/wiki for more info.
+
