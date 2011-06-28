@@ -26,7 +26,7 @@
 Read README file for features, installation and use of this plugin.
 """
 
-__version__ = "0.04"
+__version__ = "0.041"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
@@ -451,8 +451,8 @@ FRIEND LIST - lists current trusted friends""")
                 #objects. It's always True, so you must use "not ==" instead.
                 if self.keys.has_key(interlocutor) and \
                     not self.keys.get(interlocutor) == pubKey:
-                    print "Cryptochati WARNING: Your interlocutor's public " \
-                        "key has changed. She may be an impostor!!"
+                    self.warn("Your interlocutor's public " \
+                        "key has changed. She may be an impostor!!")
                 self.keys[interlocutor] = pubKey
                 file = open(self.keysPath, "wb")
                 cPickle.dump(self.keys, file)
@@ -486,7 +486,7 @@ FRIEND LIST - lists current trusted friends""")
                 conversation["signature"] = None
                 conversation["keyiv"] = None
             else:
-                print "Cryptochati WARNING: Bad signature. " \
+                self.warn("Bad signature. " \
                     "Your interlocutor may be an impostor!!"
             
             return xchat.EAT_XCHAT
@@ -494,8 +494,9 @@ FRIEND LIST - lists current trusted friends""")
         elif datatype == "enc":
             try:
                 if conversation["txtkey"] == None:
-                    exceptionmsg = "Cryptochati WARNING: It's not possible to decrypt " \
-                    "your interlocutor's message. She's using unkown conversation key. Send her a message to resynchronize."
+                    exceptionmsg = "It's not possible to decrypt " \
+                        "your interlocutor's message. She's using unkown conversation key. Send her a message to resynchronize."
+                    warn(exceptionmsg)
                     raise Exception(exceptionmsg)
                 decoded = self.decipher(conversation["txtkey"], data)
                 xchat.emit_print(userdata, self.KEY_SYMBOL + word[0], decoded)
@@ -555,6 +556,11 @@ FRIEND LIST - lists current trusted friends""")
             return xchat.EAT_ALL
         else:
             return xchat.EAT_NONE
+    
+    def warn(self, msg):
+        xchat.emit_print("Private Message to Dialog", "5,17Cryptochati",
+            "" + msg)
+        return
     
 
 
