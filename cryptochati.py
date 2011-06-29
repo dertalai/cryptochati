@@ -487,7 +487,7 @@ FRIEND LIST - lists current trusted friends""")
                 conversation["keyiv"] = None
             else:
                 self.warn("Bad signature. " \
-                    "Your interlocutor may be an impostor!!"
+                    "Your interlocutor may be an impostor!!")
             
             return xchat.EAT_XCHAT
         
