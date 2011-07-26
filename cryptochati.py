@@ -66,10 +66,8 @@ class MsgWrapper:
     ALPHABET = string.digits + string.ascii_letters + string.punctuation
     ALPHABET_LOOKUP = dict((char, i) for (i, char) in enumerate(ALPHABET))
     BASE = len(ALPHABET)
+    CHARSIZE = 256
     
-    def __init__(self):
-        pass
-        
     @classmethod
     def wrap(self, datatype, data, nick):
         #print "wrap:", type, str(data)[:80], nick
@@ -149,7 +147,7 @@ class MsgWrapper:
         string = "\x01" + string
         num = 0
         for i in string:
-            num = num * 256 + ord(i)
+            num = num * self.CHARSIZE + ord(i)
         return self.dec2baseX(num)
     
     @classmethod
@@ -157,7 +155,7 @@ class MsgWrapper:
         num = self.baseX2dec(data)
         s = ""
         while True:
-            num, r = divmod(num, 256)
+            num, r = divmod(num, self.CHARSIZE)
             s += chr(r)
             if num == 0: break
         #reverse and remove leading \x01
@@ -496,7 +494,7 @@ FRIEND LIST - lists current trusted friends""")
                 if conversation["txtkey"] == None:
                     exceptionmsg = "It's not possible to decrypt " \
                         "your interlocutor's message. She's using unkown conversation key. Send her a message to resynchronize."
-                    warn(exceptionmsg)
+                    self.warn(exceptionmsg)
                     raise Exception(exceptionmsg)
                 decoded = self.decipher(conversation["txtkey"], data)
                 xchat.emit_print(userdata, self.KEY_SYMBOL + word[0], decoded)
