@@ -170,7 +170,7 @@ class Conversations(dict):
         
         if not self.has_key(nick):
             super(Conversations, self).__setitem__(nick, {
-                #RSA public key of this interlocutor
+                #RSA public key of this interlocutor currently in use
                 "publickey": None,
                 #AES object for incoming messages
                 "txtkey": None,
@@ -226,6 +226,13 @@ class Keys(dict):
             if xchat.nickcmp(nick, i) == 0:
                 result = i
         return super(Keys, self).has_key(result)
+    
+    def pop(self, nick, value):
+        result = nick
+        for i in self.iterkeys():
+            if xchat.nickcmp(nick, i) == 0:
+                result = i
+        return super(Keys, self).pop(result, value)
 
 class Encryptor:
     #List of friend nicks
@@ -335,6 +342,13 @@ FRIEND LIST - lists current trusted friends""")
                 if found:
                     self.friends.remove(found)
                     self.savefriends()
+                    #delete stored public key
+                    self.conversations.get(found)["publickey"] = None
+                    self.keys.pop(found, None)
+                    with open(self.keysPath, "wb") as file:
+                        cPickle.dump(self.keys, file)
+                        file.close()
+
                     print found + " has been deleted from friends list"
                 else:
                     print delnick + " was not on friends list"
@@ -459,8 +473,11 @@ FRIEND LIST - lists current trusted friends""")
                 if self.keys.has_key(interlocutor) and \
                     not self.keys.get(interlocutor) == pubKey:
                     possibleimpostor = True
-                    self.warn("Your interlocutor's public " \
-                        "key has changed. She may be an impostor!!")
+                    self.warn("Your interlocutor's public key has changed. " \
+                        "She may be an impostor!! If you are sure she isn't, " \
+                        "use \"/FRIEND DEL <nick>\" and then \"/FRIEND ADD " \
+                        "<nick>\" commands to restore trusting. Otherwise, " \
+                        "you'll keep receiving warning messages.")
                 if not possibleimpostor:
                     self.keys[interlocutor] = pubKey
                     file = open(self.keysPath, "wb")
