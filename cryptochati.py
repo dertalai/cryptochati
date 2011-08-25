@@ -170,13 +170,19 @@ class Conversations(dict):
         
         if not self.has_key(nick):
             super(Conversations, self).__setitem__(nick, {
-                "publickey": "",
-                #AES key
+                #RSA public key of this interlocutor
+                "publickey": None,
+                #AES object for incoming messages
                 "txtkey": None,
+                #key + initial IV pair of incoming messages
                 "keyiv": None,
+                #signature of initial incoming message
                 "signature": None,
+                #AES object for outcoming messages
                 "sndtxtkey": None,
+                #boolean: we need to send our public key to this interlocutor
                 "sndpublickey": True,
+                #buffer for multipart incoming message
                 "multipart": "",
             })
         
@@ -240,7 +246,9 @@ class Encryptor:
         xchat.hook_print("Private Message to Dialog", self.decode, "Private Message to Dialog")
         
         xchat.hook_print("Quit", self.quithook, "Quit")
-        xchat.hook_print("Connected", self.connectedhook, "Connected")
+        xchat.hook_print("Connected", self.resetconversationshook, "Connected")
+        xchat.hook_print("Your Nick Changing", self.resetconversationshook,
+            "Your Nick Changing")
         
         #Generic encode hook
         self.allhook = xchat.hook_command("", self.encode)
@@ -288,8 +296,8 @@ FRIEND LIST - lists current trusted friends""")
         
         return xchat.EAT_NONE
 
-    def connectedhook(self, word, word_eol, userdata):
-        #print "connected: ", word
+    def resetconversationshook(self, word, word_eol, userdata):
+        #print "resetconversationshook: ", word
         #Reset all conversations
         self.conversations = Conversations()
         
@@ -445,16 +453,19 @@ FRIEND LIST - lists current trusted friends""")
             try:
                 pubKey = data
                 assert isinstance(pubKey, RSA.RSAobj_c)
+                possibleimpostor = False
                 #Caution: negative comparation "!=" doesn't work for RSA
                 #objects. It's always True, so you must use "not ==" instead.
                 if self.keys.has_key(interlocutor) and \
                     not self.keys.get(interlocutor) == pubKey:
+                    possibleimpostor = True
                     self.warn("Your interlocutor's public " \
                         "key has changed. She may be an impostor!!")
-                self.keys[interlocutor] = pubKey
-                file = open(self.keysPath, "wb")
-                cPickle.dump(self.keys, file)
-                file.close()
+                if not possibleimpostor:
+                    self.keys[interlocutor] = pubKey
+                    file = open(self.keysPath, "wb")
+                    cPickle.dump(self.keys, file)
+                    file.close()
                 conversation["publickey"] = pubKey
                 self.conversations.reset(interlocutor)
                 
@@ -540,7 +551,12 @@ FRIEND LIST - lists current trusted friends""")
             if txtKey != None:
                 txtSignature = self.sign(txtKey)
                 #Send key
-                MsgWrapper.wrap("key", self.keys[interlocutor].encrypt(txtKey, "")[0],
+                pubkey = None
+                if conversation["publickey"] != None:
+                    pubkey = conversation["publickey"]
+                else:
+                    pubkey = self.keys[interlocutor]
+                MsgWrapper.wrap("key", pubkey.encrypt(txtKey, "")[0],
                     interlocutor)
                 #Send signature
                 MsgWrapper.wrap("sig", txtSignature[0], interlocutor)
