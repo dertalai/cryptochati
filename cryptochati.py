@@ -345,10 +345,8 @@ FRIEND LIST - lists current trusted friends""")
                     #delete stored public key
                     self.conversations.get(found)["publickey"] = None
                     self.keys.pop(found, None)
-                    with open(self.keysPath, "wb") as file:
-                        cPickle.dump(self.keys, file)
-                        file.close()
-
+                    self.savekeys()
+                    
                     print found + " has been deleted from friends list"
                 else:
                     print delnick + " was not on friends list"
@@ -364,6 +362,11 @@ FRIEND LIST - lists current trusted friends""")
             for i in self.friends:
                 file.writelines(i + "\n")
 
+    def savekeys(self):
+        with open(self.keysPath, "wb") as file:
+            cPickle.dump(self.keys, file)
+            file.close()
+        
     
     def cipher(self, string, nick):
         conversation = self.conversations.get(nick)
@@ -416,7 +419,7 @@ FRIEND LIST - lists current trusted friends""")
         if os.path.isfile(self.myKeyPath):
             with open(self.myKeyPath, "rb") as file:
                 self.privKey = cPickle.load(file)
-                print "Private key loaded."
+                print "Private key loaded from " + self.myKeyPath
             assert isinstance(self.privKey, RSA.RSAobj_c)
             
         else:
@@ -425,15 +428,18 @@ FRIEND LIST - lists current trusted friends""")
                 cPickle.dump(self.privKey, file)
                 print "Private key generated and saved in " + self.myKeyPath
         
-        if not os.path.isfile(self.keysPath):
-            file = open(self.keysPath, "wb")
-            cPickle.dump(Keys(), file)
-            file.close()
-        with open(self.keysPath, "rb") as file:
-            self.keys = cPickle.load(file)
+        if os.path.isfile(self.keysPath):
+            with open(self.keysPath, "rb") as file:
+                self.keys = cPickle.load(file)
             assert isinstance(self.keys, Keys)
-            print "Friend keys read from " + self.keysPath
-
+            print "Friend keys loaded from " + self.keysPath
+        else:
+            self.keys = Keys()
+            self.savekeys()
+            assert os.path.isfile(self.keysPath)
+            print "Empty friend keys generated and saved in " + self.keysPath
+            
+            
         self.pubKey = self.privKey.publickey()
         
 
@@ -480,9 +486,7 @@ FRIEND LIST - lists current trusted friends""")
                         "you'll keep receiving warning messages.")
                 if not possibleimpostor:
                     self.keys[interlocutor] = pubKey
-                    file = open(self.keysPath, "wb")
-                    cPickle.dump(self.keys, file)
-                    file.close()
+                    self.savekeys()
                 conversation["publickey"] = pubKey
                 self.conversations.reset(interlocutor)
                 
