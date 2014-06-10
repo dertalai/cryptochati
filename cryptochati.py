@@ -26,7 +26,7 @@
 Read README file for features, installation and use of this plugin.
 """
 
-__version__ = "0.043"
+__version__ = "0.044"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010-2014 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
@@ -46,7 +46,7 @@ except ImportError:
         from os import urandom as get_random_bytes
     except ImportError:
         get_random_bytes = open("/dev/urandom", "rb").read
-import cPickle
+import pickle
 import os
 import hashlib
 import string
@@ -75,7 +75,7 @@ class MsgWrapper:
         assert PREFIXES.has_key(datatype)
 
         if datatype == "pub":
-            encoded = self.str2baseX(cPickle.dumps(data))
+            encoded = self.str2baseX(pickle.dumps(data))
 
         elif datatype == "key":
             encoded = self.str2baseX(data)
@@ -111,7 +111,7 @@ class MsgWrapper:
         decoded = None
         encoded = data[PREFIXSIZE:]
         if datatype == "pub":
-            decoded = cPickle.loads(self.baseX2str(encoded))
+            decoded = pickle.loads(self.baseX2str(encoded))
         elif datatype == "key":
             decoded = self.baseX2str(encoded)
         elif datatype == "sig":
@@ -364,7 +364,7 @@ FRIEND LIST - lists current trusted friends""")
 
     def savekeys(self):
         with open(self.keysPath, "wb") as file:
-            cPickle.dump(self.keys, file)
+            pickle.dump(self.keys, file)
             file.close()
 
 
@@ -418,19 +418,19 @@ FRIEND LIST - lists current trusted friends""")
 
         if os.path.isfile(self.myKeyPath):
             with open(self.myKeyPath, "rb") as file:
-                self.privKey = cPickle.load(file)
+                self.privKey = pickle.load(file)
                 print "Private key loaded from " + self.myKeyPath
             # assert isinstance(self.privKey, RSA.RSAobj_c)
 
         else:
             self.privKey = RSA.generate(PUBKEYSIZE, self.randfunc)
             with open(self.myKeyPath, "wb") as file:
-                cPickle.dump(self.privKey, file)
+                pickle.dump(self.privKey, file)
                 print "Private key generated and saved in " + self.myKeyPath
 
         if os.path.isfile(self.keysPath):
             with open(self.keysPath, "rb") as file:
-                self.keys = cPickle.load(file)
+                self.keys = pickle.load(file)
             assert isinstance(self.keys, Keys)
             print "Friend keys loaded from " + self.keysPath
         else:
