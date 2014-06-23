@@ -26,7 +26,7 @@
 Read README file for features, installation and use of this plugin.
 """
 
-__version__ = "0.044"
+__version__ = "0.045"
 __author__ = "Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
 __copyright__ = \
     "Copyright © 2010-2014 Dertalai <base64:'ZGVydGFsYWlAZ21haWwuY29t'>"
@@ -46,6 +46,7 @@ except ImportError:
         from os import urandom as get_random_bytes
     except ImportError:
         get_random_bytes = open("/dev/urandom", "rb").read
+
 import pickle
 import os
 import hashlib
@@ -75,8 +76,7 @@ class MsgWrapper:
         assert PREFIXES.has_key(datatype)
 
         if datatype == "pub":
-            encoded = self.str2baseX(pickle.dumps(data))
-
+            encoded = self.str2baseX(data.exportKey())
         elif datatype == "key":
             encoded = self.str2baseX(data)
 
@@ -111,7 +111,7 @@ class MsgWrapper:
         decoded = None
         encoded = data[PREFIXSIZE:]
         if datatype == "pub":
-            decoded = pickle.loads(self.baseX2str(encoded))
+            decoded = RSA.importKey(self.baseX2str(encoded))
         elif datatype == "key":
             decoded = self.baseX2str(encoded)
         elif datatype == "sig":
@@ -406,7 +406,7 @@ FRIEND LIST - lists current trusted friends""")
 
 
     def openConfiguration(self):
-        PUBKEYSIZE = 1024
+        PUBKEYSIZE = 2048
         if not os.path.isfile(self.friendsPath):
             open(self.friendsPath, "wb").close()
         with open(self.friendsPath, "rb") as file:
@@ -418,14 +418,14 @@ FRIEND LIST - lists current trusted friends""")
 
         if os.path.isfile(self.myKeyPath):
             with open(self.myKeyPath, "rb") as file:
-                self.privKey = pickle.load(file)
+                self.privKey = RSA.importKey(file.read())
                 print "Private key loaded from " + self.myKeyPath
             # assert isinstance(self.privKey, RSA.RSAobj_c)
 
         else:
             self.privKey = RSA.generate(PUBKEYSIZE, self.randfunc)
             with open(self.myKeyPath, "wb") as file:
-                pickle.dump(self.privKey, file)
+                file.write(self.privKey.exportKey())
                 print "Private key generated and saved in " + self.myKeyPath
 
         if os.path.isfile(self.keysPath):
